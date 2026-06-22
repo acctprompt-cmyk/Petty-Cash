@@ -692,22 +692,8 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
       </div>
       <hr class="divider" style="margin:20px 0">
       <div class="section-title" style="font-size:16px">☁️ การเชื่อมต่อระบบ</div>
-
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px">
-        <div style="font-weight:700;margin-bottom:12px;color:var(--primary)">🔥 Firebase Realtime Database</div>
-        <div class="row2">
-          <div><label>Database URL</label><input id="s_fbUrl" placeholder="https://project-rtdb.asia-southeast1.firebasedatabase.app"></div>
-          <div><label>API Key</label><input id="s_fbApiKey" placeholder="AIzaSy..."></div>
-        </div>
-        <div><label>Project ID</label><input id="s_fbProjectId" placeholder="your-project-id"></div>
-      </div>
-
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px">
-        <div style="font-weight:700;margin-bottom:12px;color:var(--primary)">📁 Google Drive</div>
-        <div class="row2">
-          <div><label>OAuth Client ID</label><input id="s_clientId" placeholder="xxxx.apps.googleusercontent.com"></div>
-          <div><label>Drive Folder ID</label><input id="s_folderId" placeholder="1AbCdEfGhIjKlMn..."></div>
-        </div>
+      <div style="background:var(--success-bg);border:1px solid rgba(16,185,129,.2);border-radius:12px;padding:14px 18px;color:var(--success);font-size:14px">
+        🔒 การเชื่อมต่อ Firebase และ Google Drive ถูกตั้งค่าโดยผู้ดูแลระบบแล้ว ทุกเครื่องเชื่อมต่ออัตโนมัติ
       </div>
 
       <div style="margin-top:16px"><button onclick="saveSettings()">💾 บันทึกการตั้งค่า</button></div>
@@ -926,8 +912,24 @@ const LS_FUNDS = 'pca_funds';
 const LS_CATS  = 'pca_cats';
 const LS_FAVS  = 'pca_favs';
 
-function getCfg(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY)||'{}'); }catch{ return {}; } }
-function setCfg(c){ localStorage.setItem(CFG_KEY, JSON.stringify(c)); }
+// ══ CONFIG ตายตัว — ทุกเครื่องใช้ค่านี้อัตโนมัติ ไม่ต้องกรอก ══
+const SYSTEM_CFG = {
+  fbUrl:       'https://petty-cash-ad50c-default-rtdb.asia-southeast1.firebasedatabase.app',
+  fbApiKey:    'AIzaSyBpZhlNJ0S4cPGk99OFwKStHtT7QWsaIkA',
+  fbProjectId: 'petty-cash-ad50c',
+  clientId:    '455629154696-pspviq9qbeqsltoc6q7ama4ni7454gmr.apps.googleusercontent.com',
+  folderId:    '1ZHm3OvcSrhVYBOPbT-BYu-9sJaw16QC_',
+};
+
+function getCfg(){
+  try{ return Object.assign({}, SYSTEM_CFG, JSON.parse(localStorage.getItem(CFG_KEY)||'{}')); }
+  catch{ return Object.assign({}, SYSTEM_CFG); }
+}
+function setCfg(c){
+  // เก็บเฉพาะค่า user settings ไม่บันทึก system config ทับ
+  const {fbUrl,fbApiKey,fbProjectId,clientId,folderId,...rest} = c;
+  localStorage.setItem(CFG_KEY, JSON.stringify(rest));
+}
 function lsGet(key, fb){ try{ const v=localStorage.getItem(key); return v?JSON.parse(v):fb; }catch{ return fb; } }
 function lsSet(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
 
@@ -1758,12 +1760,13 @@ async function saveTxMulti() {
   const note     = document.getElementById('f_note').value;
 
   const firstDocNo = genDocNo(dateVal);
-  let attachmentUrl='', attachmentName='';
+  // เก็บไฟล์ไว้ก่อน ยังไม่ upload
   const file = document.getElementById('f_file').files[0];
+  let attachmentUrl='', attachmentName='';
   if (file) {
-    toast.querySelector('span').textContent='กำลังบันทึกไฟล์...';
-    try { const dr=await uploadFile(file, firstDocNo, dateVal); attachmentUrl=dr.webViewLink; attachmentName=dr.name; }
-    catch(e) { toast.remove(); showToast('อัปโหลดไฟล์ล้มเหลว: '+e.message,'error'); btn.disabled=false; return; }
+    // เก็บเป็น dataURL ชั่วคราวเพื่อแสดงใน UI ก่อน
+    attachmentUrl = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); });
+    attachmentName = file.name;
   }
 
   // สร้างรายการ 1 รายการต่อ 1 line item แต่ใช้ VAT/WHT ตามสัดส่วน
@@ -1788,12 +1791,29 @@ async function saveTxMulti() {
   });
 
   try {
+    // บันทึกข้อมูลทันที ไม่รอ upload ไฟล์
     S.transactions.unshift(...newTxns.reverse());
     await writeJson('transactions', S.transactions);
     toast.remove();
     showToast(`บันทึก ${newTxns.length} รายการเรียบร้อย ✓`, 'success');
     clearForm(); renderTxns(); switchTab('transactions');
     checkFundAlerts(false);
+
+    // upload ไฟล์ใน background หลังบันทึกเสร็จแล้ว
+    if (file) {
+      const txId = newTxns[0].id;
+      uploadFile(file, firstDocNo, dateVal).then(async dr => {
+        const idx = S.transactions.findIndex(t=>t.id===txId);
+        if (idx>=0) {
+          S.transactions[idx].attachmentUrl  = dr.webViewLink;
+          S.transactions[idx].attachmentName = dr.name;
+          S.transactions[idx].updatedAt = new Date().toISOString();
+          await writeJson('transactions', S.transactions);
+          renderTxns();
+          showToast('✓ อัปโหลดไฟล์แนบขึ้น Drive แล้ว','success');
+        }
+      }).catch(e => console.warn('Background upload failed:', e.message));
+    }
   } catch(e) {
     toast.remove(); showToast('ล้มเหลว: '+e.message,'error');
   } finally { btn.disabled=false; }
@@ -1828,11 +1848,10 @@ async function saveTx(addAnother=false) {
     const file = document.getElementById('f_file').files[0];
     let attachmentUrl = '', attachmentName = '';
     const docNo = genDocNo(dateVal);
+    // เก็บ dataURL ชั่วคราว ไม่รอ upload Drive
     if (file) {
-      toast.querySelector('span').textContent = 'กำลังบันทึกไฟล์...';
-      const dr = await uploadFile(file, docNo, dateVal);
-      attachmentUrl = dr.webViewLink;
-      attachmentName = dr.name;
+      attachmentUrl = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); });
+      attachmentName = file.name;
     }
 
     // ── Auto cert if no receipt ──
@@ -1878,7 +1897,6 @@ async function saveTx(addAnother=false) {
       t2.remove();
       if (addAnother) {
         showToast('บันทึกเรียบร้อย ✓ กรอกรายการถัดไปได้เลย', 'success');
-        // ล้างเฉพาะฟิลด์รายการ คงวันที่/ผู้เบิก/วงเงินไว้
         document.getElementById('f_desc').value    = '';
         document.getElementById('f_amount').value  = '0';
         document.getElementById('f_cat').value     = '';
@@ -1899,6 +1917,20 @@ async function saveTx(addAnother=false) {
         clearForm(); renderTxns(); switchTab('transactions');
       }
       checkFundAlerts(false);
+      // upload ไฟล์ใน background
+      if (file && record.attachmentUrl?.startsWith('data:')) {
+        uploadFile(file, record.documentNo, record.date).then(async dr => {
+          const idx = S.transactions.findIndex(t=>t.id===record.id);
+          if (idx>=0) {
+            S.transactions[idx].attachmentUrl  = dr.webViewLink;
+            S.transactions[idx].attachmentName = dr.name;
+            S.transactions[idx].updatedAt = new Date().toISOString();
+            await writeJson('transactions', S.transactions);
+            renderTxns();
+            showToast('✓ อัปโหลดไฟล์แนบขึ้น Drive แล้ว','success');
+          }
+        }).catch(e => console.warn('Background upload:', e.message));
+      }
     } catch(e) {
       t2.remove();
       showToast('ล้มเหลว: ' + e.message, 'error');
