@@ -697,6 +697,38 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
       </div>
 
       <div style="margin-top:16px"><button onclick="saveSettings()">💾 บันทึกการตั้งค่า</button></div>
+
+      <!-- ── ล้างข้อมูล (เฉพาะผู้อนุมัติ/แอดมิน) ── -->
+      <div id="dangerZone" class="hidden">
+        <hr class="divider" style="margin:24px 0">
+        <div class="section-title" style="font-size:16px;color:var(--danger)">⚠️ โซนอันตราย</div>
+
+        <!-- รีเซ็ตรหัสผ่าน -->
+        <div style="background:var(--warn-bg);border:1px solid rgba(217,119,6,.2);border-radius:14px;padding:18px;margin-bottom:14px">
+          <div style="font-weight:700;margin-bottom:10px;color:var(--warn)">🔑 รีเซ็ตรหัสผ่านผู้ใช้</div>
+          <div class="row2">
+            <div>
+              <label>เลือกผู้ใช้</label>
+              <select id="reset_user" style="width:100%"></select>
+            </div>
+            <div>
+              <label>รหัสผ่านใหม่</label>
+              <input id="reset_pwd" type="password" placeholder="รหัสผ่านใหม่">
+            </div>
+          </div>
+          <button onclick="resetPassword()" style="margin-top:10px;background:var(--warn);color:#fff;border:none;padding:9px 20px;border-radius:10px;cursor:pointer;font-size:14px;font-family:inherit;font-weight:700">🔑 รีเซ็ตรหัสผ่าน</button>
+        </div>
+
+        <!-- ล้างข้อมูลทั้งหมด -->
+        <div style="background:var(--danger-bg);border:1px solid rgba(220,38,38,.2);border-radius:14px;padding:18px">
+          <div style="font-weight:700;margin-bottom:8px;color:var(--danger)">🗑️ ล้างข้อมูลทั้งหมด</div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:12px">ลบรายการทั้งหมดออกจากระบบ (ผู้ใช้และการตั้งค่าจะยังคงอยู่) ไม่สามารถกู้คืนได้</div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <input id="clear_confirm" placeholder='พิมพ์ "ยืนยันลบข้อมูล" เพื่อยืนยัน' style="flex:1;min-width:200px">
+            <button onclick="clearAllData()" style="background:var(--danger);color:#fff;border:none;padding:9px 20px;border-radius:10px;cursor:pointer;font-size:14px;font-family:inherit;font-weight:700">🗑️ ล้างข้อมูล</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ── Categories ── -->
@@ -1391,6 +1423,12 @@ function switchTab(tab) {
   if(tab==='cats')  { renderCatsTab(); }
   if(tab==='users') { setTimeout(initSigPad, 80); }
   if(tab==='cert')  { initCertTab(); }
+  if(tab==='settings') {
+    const role = S.user?.role;
+    const dz = document.getElementById('dangerZone');
+    if (dz) dz.classList.toggle('hidden', role!=='ผู้อนุมัติ' && role!=='แอดมิน');
+    populateResetUserDropdown();
+  }
 }
 
 function renderTxns() {
@@ -2199,6 +2237,44 @@ function initSettingsListeners() {
   ['s_docFormat','s_docSeqStart','s_docSeqPad'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.addEventListener('input', previewDocNo);
   });
+}
+
+// ── ล้างข้อมูลทั้งหมด ──
+async function clearAllData() {
+  const confirm_txt = document.getElementById('clear_confirm')?.value.trim();
+  if (confirm_txt !== 'ยืนยันลบข้อมูล') return showToast('กรุณาพิมพ์ "ยืนยันลบข้อมูล" ให้ถูกต้อง','error');
+  if (!window.confirm('ยืนยันการลบรายการทั้งหมด? ไม่สามารถกู้คืนได้!')) return;
+  try {
+    S.transactions = [];
+    await writeJson('transactions', []);
+    lsSet(LS_TXN, []);
+    document.getElementById('clear_confirm').value = '';
+    showToast('✓ ล้างข้อมูลทั้งหมดเรียบร้อย','success');
+    renderTxns();
+  } catch(e) { showToast('ล้มเหลว: '+e.message,'error'); }
+}
+
+// ── รีเซ็ตรหัสผ่านผู้ใช้ ──
+async function resetPassword() {
+  const uid  = document.getElementById('reset_user')?.value;
+  const pwd  = document.getElementById('reset_pwd')?.value.trim();
+  if (!uid)  return showToast('กรุณาเลือกผู้ใช้','error');
+  if (!pwd)  return showToast('กรุณากรอกรหัสผ่านใหม่','error');
+  if (pwd.length < 4) return showToast('รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร','error');
+  const i = S.users.findIndex(u=>u.id===uid);
+  if (i<0) return showToast('ไม่พบผู้ใช้','error');
+  S.users[i].password = pwd;
+  await writeJson('users', S.users);
+  document.getElementById('reset_pwd').value = '';
+  showToast(`✓ รีเซ็ตรหัสผ่านของ "${S.users[i].displayName||S.users[i].username}" เรียบร้อย`,'success');
+}
+
+// populate reset_user dropdown
+function populateResetUserDropdown() {
+  const sel = document.getElementById('reset_user');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— เลือกผู้ใช้ —</option>' +
+    S.users.map(u=>`<option value="${u.id}">${u.displayName||u.username} (${u.role})</option>`).join('');
 }
 
 async function saveSettings(){
