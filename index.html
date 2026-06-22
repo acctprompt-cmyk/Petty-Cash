@@ -1019,11 +1019,9 @@ async function writeJson(key, data) {
   syncJsonToDrive(key, data).catch(()=>{});
 }
 async function uploadFile(file, docNo, dateStr) {
-  if (_driveToken && docNo) {
+  if (docNo) {
     try {
-      const folderId = await getDocFolder(dateStr||new Date().toISOString().slice(0,10), docNo);
-      const result = await uploadFileToDrive(file, folderId);
-      return { webViewLink: result.webViewLink, name: result.name, driveFileId: result.id };
+      return await uploadFileToDrive(file, dateStr, docNo);
     } catch(e) { showToast('Drive upload ล้มเหลว ใช้ local แทน: '+e.message, ''); }
   }
   const dataUrl = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); });
@@ -1033,208 +1031,50 @@ async function uploadFile(file, docNo, dateStr) {
 // ══════════════════════════════════════════════════════
 //  GOOGLE DRIVE INTEGRATION
 // ══════════════════════════════════════════════════════
-let _driveToken = null;
-let _driveReady = false;
+// ══════════════════════════════════════════════════════
+//  GOOGLE DRIVE — ผ่าน Apps Script Proxy (ไม่ต้อง login)
+// ══════════════════════════════════════════════════════
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx1tgLc0wZJGJhGZAXgfCMkI5aPYPGEFqi344HPD4mIwKLKQUC4L0KBqFzGNoFwxRvq/exec';
+let _driveReady = true; // พร้อมใช้งานเสมอ ไม่ต้อง login
 
 function initDriveAuth() {
-  const cfg = getCfg();
-  if (!cfg.clientId || typeof google === 'undefined') return;
-  const badge = document.getElementById('driveBadge');
-  if (badge) badge.style.display = 'inline-block';
-  try {
-    window._tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: cfg.clientId,
-      scope: 'https://www.googleapis.com/auth/drive',
-      callback: (resp) => {
-        if (resp.error) { showToast('Drive auth ล้มเหลว: '+resp.error,'error'); return; }
-        _driveToken = resp.access_token;
-        _driveReady = true;
-        showToast('✓ เชื่อมต่อ Google Drive แล้ว','success');
-        updateDriveBadge(true);
-      },
-    });
-  } catch(e) { console.warn('Drive init skipped:', e.message); }
+  updateDriveBadge(true);
 }
-
-function requestDriveToken() {
-  const cfg = getCfg();
-  if (!cfg.clientId) return; // ไม่มี clientId ไม่ทำอะไร
-  if (!window._tokenClient) return;
-  window._tokenClient.requestAccessToken();
-}
-
+function requestDriveToken() {}
 function updateDriveBadge(ok) {
   const b = document.getElementById('driveBadge');
   if (!b) return;
-  b.textContent = ok ? '☁️ Drive เชื่อมต่อแล้ว' : '☁️ เชื่อมต่อ Drive';
-  b.style.color = ok ? 'var(--success)' : 'var(--text2)';
-  b.style.cursor = ok ? 'default' : 'pointer';
-  b.onclick = ok ? null : requestDriveToken;
-}
-
-async function driveApi(method, endpoint, params={}, body=null) {
-  if (!_driveToken) throw new Error('ยังไม่ได้เชื่อมต่อ Google Drive');
-  const url = new URL('https://www.googleapis.com/drive/v3/'+endpoint);
-  Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
-  const opts = { method, headers:{ Authorization:'Bearer '+_driveToken } };
-  if (body) { opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
-  const r = await fetch(url, opts);
-  if (!r.ok) { const e=await r.json().catch(()=>({})); throw new Error(e?.error?.message||r.statusText); }
-  return r.json();
-}
-
-async function getOrCreateFolder(name, parentId) {
-  const q = `name='${name.replace(/'/g,"\\'")}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-  const res = await driveApi('GET','files',{q,fields:'files(id,name)',spaces:'drive'});
-  if (res.files?.length) return res.files[0].id;
-  const created = await driveApi('POST','files',{fields:'id'},{
-    name, mimeType:'application/vnd.google-apps.folder', parents:[parentId]
-  });
-  return created.id;
-}
-
-const THAI_MONTHS_FOLDER=['','01-มกราคม','02-กุมภาพันธ์','03-มีนาคม','04-เมษายน','05-พฤษภาคม','06-มิถุนายน','07-กรกฎาคม','08-สิงหาคม','09-กันยายน','10-ตุลาคม','11-พฤศจิกายน','12-ธันวาคม'];
-
-async function getDocFolder(dateStr, docNo) {
-  const cfg = getCfg();
-  if (!cfg.folderId) throw new Error('ยังไม่ได้ตั้งค่า Drive Folder ID');
-  const [y,m,d] = (dateStr||new Date().toISOString().slice(0,10)).split('-');
-  const thaiYear = String(parseInt(y)+543);
-  const monthFolder = THAI_MONTHS_FOLDER[parseInt(m)]||m;
-  const rootId  = await getOrCreateFolder('Petty Cash', cfg.folderId);
-  const yearId  = await getOrCreateFolder(thaiYear,     rootId);
-  const monthId = await getOrCreateFolder(monthFolder,  yearId);
-  const dayId   = await getOrCreateFolder(d,            monthId);
-  const docId   = await getOrCreateFolder(docNo,        dayId);
-  return docId;
-}
-
-async function uploadFileToDrive(file, folderId) {
-  const meta = { name:file.name, parents:[folderId] };
-  const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify(meta)],{type:'application/json'}));
-  form.append('file', file);
-  const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink,name',{
-    method:'POST', headers:{Authorization:'Bearer '+_driveToken}, body:form
-  });
-  if (!r.ok) { const e=await r.json().catch(()=>({})); throw new Error(e?.error?.message||r.statusText); }
-  return r.json();
-}
-
-// อัปโหลดใบรับรองแทนใบเสร็จเป็น HTML ไปยัง Drive folder
-async function uploadCertHtmlToDrive(certHtml, docNo, dateStr) {
-  if (!_driveToken) return;
-  try {
-    const folderId = await getDocFolder(dateStr||new Date().toISOString().slice(0,10), docNo);
-
-    // โหลด library
-    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
-    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
-
-    // สร้าง container — ไม่จำกัด height เพื่อรองรับหลายหน้า
-    const wrap = document.createElement('div');
-    wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;z-index:-999;font-family:Sarabun,sans-serif';
-
-    // parse cert HTML
-    const parser = new DOMParser();
-    const parsed = parser.parseFromString(certHtml, 'text/html');
-
-    // inject styles จาก cert
-    parsed.querySelectorAll('style').forEach(s => {
-      const st = document.createElement('style');
-      st.textContent = s.textContent
-        .replace(/width:\s*\d+mm/g, 'width:100%')
-        .replace(/width:\s*780px/g, 'width:794px');
-      wrap.appendChild(st);
-    });
-
-    // บังคับ font + ซ่อน UI เลือกไฟล์ลายเซ็น + ซ่อนปุ่ม
-    const forceStyle = document.createElement('style');
-    forceStyle.textContent = `
-      *{font-family:'Sarabun',sans-serif!important;box-sizing:border-box}
-      .page{width:794px!important;padding:28px 36px!important;margin:0!important}
-      .hd-company{font-size:17px!important;font-weight:700!important}
-      .hd-title{font-size:16px!important;font-weight:600!important}
-      table.items th{font-size:15px!important}
-      table.items td{font-size:15px!important}
-      .tfoot-label td,.tfoot-baht td{font-size:15px!important}
-      .remark{font-size:15px!important;line-height:2.2!important}
-      .sig-line{font-size:15px!important}
-      .approve-note{font-size:15px!important}
-      /* ซ่อน UI เลือกไฟล์ลายเซ็น */
-      .sig-file-btn,.sig-upload-hint,
-      label[for^="file_"],input[type="file"],
-      button,.no-print{display:none!important}
-      /* ถ้าไม่มีลายเซ็น ให้แสดงเส้นว่างแทน */
-      .sig-img-wrap{min-height:56px!important;max-height:80px!important}
-      .sig-grid{margin-top:16px!important}
-    `;
-    wrap.appendChild(forceStyle);
-
-    const page = parsed.querySelector('.page');
-    if (page) wrap.appendChild(page.cloneNode(true));
-    else wrap.innerHTML += parsed.body.innerHTML;
-
-    // โหลด font ใน main document
-    if (!document.querySelector('#sarabunFont')) {
-      const lnk = document.createElement('link');
-      lnk.id = 'sarabunFont'; lnk.rel = 'stylesheet';
-      lnk.href = 'https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap';
-      document.head.appendChild(lnk);
-    }
-    document.body.appendChild(wrap);
-    await document.fonts.ready;
-    await new Promise(r => setTimeout(r, 1500));
-
-    // จับขนาดจริงของเนื้อหา (ไม่ตัดทิ้ง)
-    const contentH = wrap.scrollHeight;
-    const canvas = await html2canvas(wrap, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      width: 794,
-      height: contentH,
-      windowWidth: 794,
-      windowHeight: contentH,
-      onclone: (clonedDoc) => {
-        const st = clonedDoc.createElement('style');
-        st.textContent = `*{font-family:'Sarabun',sans-serif!important}
-          .sig-file-btn,.sig-upload-hint,label[for^="file_"],input[type="file"],button,.no-print{display:none!important}`;
-        clonedDoc.head.appendChild(st);
-      }
-    });
-    document.body.removeChild(wrap);
-
-    // แปลงเป็น PDF หลายหน้าถ้าเนื้อหาเกิน A4
-    const { jsPDF } = window.jspdf;
-    const pdf     = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-    const imgData = canvas.toDataURL('image/png');
-    const pdfW    = pdf.internal.pageSize.getWidth();   // 210mm
-    const pdfH    = pdf.internal.pageSize.getHeight();  // 297mm
-    const imgH    = (canvas.height * pdfW) / canvas.width; // ความสูงรูปใน mm
-
-    if (imgH <= pdfH) {
-      // หน้าเดียว
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfW, imgH);
-    } else {
-      // หลายหน้า
-      let posY = 0;
-      while (posY < imgH) {
-        pdf.addImage(imgData, 'PNG', 0, -posY, pdfW, imgH);
-        posY += pdfH;
-        if (posY < imgH) pdf.addPage();
-      }
-    }
-
-    const pdfBlob = pdf.output('blob');
-    const pdfFile = new File([pdfBlob], `ใบรับรองแทนใบเสร็จ_${docNo}.pdf`, {type:'application/pdf'});
-    await uploadFileToDrive(pdfFile, folderId);
-    showToast('✓ บันทึก PDF ใบรับรองแทนใบเสร็จใน Drive แล้ว', 'success');
-  } catch(e) {
-    console.warn('Cert PDF upload failed:', e.message);
-    showToast('บันทึก PDF ล้มเหลว: '+e.message, '');
+  if (ok) {
+    b.textContent = '☁️ Drive พร้อม';
+    b.style.color = 'var(--success)';
+    b.style.cursor = 'default';
+    b.onclick = null;
+    b.style.display = 'inline-block';
   }
+}
+
+// แปลง File → base64 แล้วส่งผ่าน Apps Script
+async function uploadFileToDrive(file, dateStr, docNo) {
+  const base64 = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+  const resp = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action:   'uploadFile',
+      fileName: file.name,
+      mimeType: file.type || 'application/octet-stream',
+      base64,
+      date:     dateStr || new Date().toISOString().slice(0,10),
+      docNo:    docNo || 'NO-DOC',
+    })
+  });
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error);
+  return { webViewLink: data.webViewLink, name: data.name, id: data.id };
 }
 
 function loadScript(src) {
@@ -1246,28 +1086,63 @@ function loadScript(src) {
   });
 }
 
+// sync JSON backup ไป Drive
 async function syncJsonToDrive(key, data) {
-  const cfg = getCfg();
-  if (!cfg.folderId || !_driveToken) return;
-  try {
-    const name = `pca_${key}.json`;
-    const fileBlob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-    const q = `name='${name}' and '${cfg.folderId}' in parents and trashed=false`;
-    const res = await driveApi('GET','files',{q,fields:'files(id)'});
-    if (res.files?.length) {
-      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${res.files[0].id}?uploadType=media`,{
-        method:'PATCH', headers:{Authorization:'Bearer '+_driveToken,'Content-Type':'application/json'}, body:fileBlob
-      });
-    } else {
-      const form = new FormData();
-      form.append('metadata',new Blob([JSON.stringify({name,parents:[cfg.folderId]})],{type:'application/json'}));
-      form.append('file',fileBlob);
-      await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
-        method:'POST', headers:{Authorization:'Bearer '+_driveToken}, body:form
-      });
-    }
-  } catch(e) { console.warn('Drive JSON sync:',e.message); }
+  fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'writeJson', key, data })
+  }).catch(() => {});
 }
+
+// uploadFile สำหรับแนบไฟล์ในฟอร์ม
+async function uploadFile(file, docNo, dateStr) {
+  try {
+    return await uploadFileToDrive(file, dateStr, docNo);
+  } catch(e) {
+    showToast('Drive upload ล้มเหลว ใช้ local แทน: '+e.message, '');
+    const dataUrl = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); });
+    return { webViewLink: dataUrl, name: file.name };
+  }
+}
+
+async function uploadCertHtmlToDrive(certHtml, docNo, dateStr) {
+  try {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;z-index:-999;font-family:Sarabun,sans-serif';
+    const parser = new DOMParser();
+    const parsed = parser.parseFromString(certHtml, 'text/html');
+    parsed.querySelectorAll('style').forEach(s => { const st=document.createElement('style'); st.textContent=s.textContent.replace(/width:\s*\d+mm/g,'width:100%').replace(/width:\s*780px/g,'width:794px'); wrap.appendChild(st); });
+    const forceStyle = document.createElement('style');
+    forceStyle.textContent = `*{font-family:'Sarabun',sans-serif!important;box-sizing:border-box}.page{width:794px!important;padding:28px 36px!important;margin:0!important}.sig-file-btn,.sig-upload-hint,label[for^="file_"],input[type="file"],button,.no-print{display:none!important}`;
+    wrap.appendChild(forceStyle);
+    const page = parsed.querySelector('.page');
+    if (page) wrap.appendChild(page.cloneNode(true));
+    else wrap.innerHTML += parsed.body.innerHTML;
+    if (!document.querySelector('#sarabunFont')) { const lnk=document.createElement('link'); lnk.id='sarabunFont'; lnk.rel='stylesheet'; lnk.href='https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap'; document.head.appendChild(lnk); }
+    document.body.appendChild(wrap);
+    await document.fonts.ready;
+    await new Promise(r=>setTimeout(r,1500));
+    const contentH = wrap.scrollHeight;
+    const canvas = await html2canvas(wrap,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,width:794,height:contentH,windowWidth:794,windowHeight:contentH});
+    document.body.removeChild(wrap);
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const imgData=canvas.toDataURL('image/png');
+    const pdfW=pdf.internal.pageSize.getWidth();
+    const pdfH=pdf.internal.pageSize.getHeight();
+    const imgH=(canvas.height*pdfW)/canvas.width;
+    if(imgH<=pdfH){pdf.addImage(imgData,'PNG',0,0,pdfW,imgH);}
+    else{let posY=0;while(posY<imgH){pdf.addImage(imgData,'PNG',0,-posY,pdfW,imgH);posY+=pdfH;if(posY<imgH)pdf.addPage();}}
+    const pdfBlob = pdf.output('blob');
+    const pdfFile = new File([pdfBlob],`ใบรับรองแทนใบเสร็จ_${docNo}.pdf`,{type:'application/pdf'});
+    const result = await uploadFileToDrive(pdfFile, dateStr, docNo);
+    showToast('✓ บันทึก PDF ใบรับรองแทนใบเสร็จใน Drive แล้ว','success');
+  } catch(e) { console.warn('Cert PDF upload failed:',e.message); showToast('บันทึก PDF ล้มเหลว: '+e.message,''); }
+}
+
+
 
 // ── SETUP ──
 function saveSetup() {
@@ -1561,14 +1436,14 @@ function renderTxns() {
             onclick='openLightbox(${JSON.stringify(JSON.stringify({url:t.attachmentUrl,name}))})'
             style="max-height:48px;max-width:80px;border-radius:6px;cursor:pointer;border:1px solid var(--border)">
           <button class="ghost sm" style="font-size:11px" onclick='downloadDataUrl("${t.id}")'>⬇ บันทึก</button>
-          ${_driveToken?reupBtn:''}
+          ${reupBtn}
         </div>`;
         if (isImg) return `<img class="att-thumb" src="${t.attachmentUrl}" alt="${name}"
           onclick='openLightbox(${JSON.stringify(JSON.stringify({url:t.attachmentUrl,name}))})'
           style="max-height:48px;max-width:80px;border-radius:6px;cursor:pointer">`;
         if (isDataUrl) return `<div style="display:flex;flex-direction:column;gap:3px">
           <button class="ghost sm" style="font-size:11px" onclick='downloadDataUrl("${t.id}")'>📎 ${name}</button>
-          ${_driveToken?reupBtn:''}
+          ${reupBtn}
         </div>`;
         return `<a href="${t.attachmentUrl}" target="_blank" style="color:var(--primary-g);font-weight:600;font-size:12px">📎 ${name}</a>`;
       })() : '-'}</td>
@@ -2103,7 +1978,7 @@ async function updateStatus(id, nextStatus, extra) {
   showToast('อัปเดตสถานะ: '+nextStatus, nextStatus==='อนุมัติ'?'success':'');
 
   // ── เมื่ออนุมัติ: auto-generate cert และ upload ขึ้น Drive ──
-  if (nextStatus === 'อนุมัติ' && _driveToken) {
+  if (nextStatus === 'อนุมัติ') {
     const t = S.transactions[i];
     if (t.receipt === 'ใบรับรองแทนใบเสร็จรับเงิน') {
       try {
@@ -2127,7 +2002,7 @@ function downloadDataUrl(txId) {
 
 // อัปโหลดไฟล์แนบ dataURL ขึ้น Drive ใหม่
 async function reuploadAttachment(txId) {
-  if (!_driveToken) return showToast('กรุณาเชื่อมต่อ Drive ก่อน','error');
+  
   const i = S.transactions.findIndex(x=>x.id===txId);
   if (i<0) return;
   const t = S.transactions[i];
@@ -2138,8 +2013,7 @@ async function reuploadAttachment(txId) {
     const res  = await fetch(t.attachmentUrl);
     const blob = await res.blob();
     const file = new File([blob], t.attachmentName||'attachment', {type:blob.type});
-    const folderId = await getDocFolder(t.date, t.documentNo);
-    const result   = await uploadFileToDrive(file, folderId);
+    const result = await uploadFileToDrive(file, t.date, t.documentNo);
     // อัปเดต transaction
     S.transactions[i].attachmentUrl    = result.webViewLink;
     S.transactions[i].driveFileId      = result.id;
