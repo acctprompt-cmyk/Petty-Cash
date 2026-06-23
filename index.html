@@ -1144,6 +1144,19 @@ function loadScript(src) {
   });
 }
 
+// โหลด html2canvas + jsPDF ล่วงหน้าตอนเปิดแท็บใบรับรอง
+function _preloadCertLibs() {
+  loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js').catch(()=>{});
+  loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js').catch(()=>{});
+  // preload Sarabun font
+  if (!document.querySelector('#sarabunFont')) {
+    const lnk = document.createElement('link');
+    lnk.id = 'sarabunFont'; lnk.rel = 'stylesheet';
+    lnk.href = 'https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap';
+    document.head.appendChild(lnk);
+  }
+}
+
 // sync JSON backup ไป Drive
 async function syncJsonToDrive(key, data) {
   fetch(APPS_SCRIPT_URL, {
@@ -1181,7 +1194,7 @@ async function uploadCertHtmlToDrive(certHtml, docNo, dateStr) {
     if (!document.querySelector('#sarabunFont')) { const lnk=document.createElement('link'); lnk.id='sarabunFont'; lnk.rel='stylesheet'; lnk.href='https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap'; document.head.appendChild(lnk); }
     document.body.appendChild(wrap);
     await document.fonts.ready;
-    await new Promise(r=>setTimeout(r,1500));
+    await new Promise(r=>setTimeout(r,300));
     const contentH = wrap.scrollHeight;
     const canvas = await html2canvas(wrap,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,width:794,height:contentH,windowWidth:794,windowHeight:contentH});
     document.body.removeChild(wrap);
@@ -1464,7 +1477,7 @@ function switchTab(tab) {
   if(tab==='settings') { setTimeout(initSettingsListeners,100); previewDocNo(); }
   if(tab==='cats')  { renderCatsTab(); }
   if(tab==='users') { setTimeout(initSigPad, 80); }
-  if(tab==='cert')  { initCertTab(); }
+  if(tab==='cert')  { initCertTab(); _preloadCertLibs(); }
   if(tab==='settings') {
     const role = S.user?.role;
     const dz = document.getElementById('dangerZone');
@@ -2850,7 +2863,7 @@ async function uploadStandaloneCertToDrive(certHtml, docNo, dateStr) {
     }
     document.body.appendChild(wrap);
     await document.fonts.ready;
-    await new Promise(r=>setTimeout(r,1500));
+    await new Promise(r=>setTimeout(r,300));
     const contentH = wrap.scrollHeight;
     const canvas = await html2canvas(wrap,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,width:794,height:contentH,windowWidth:794,windowHeight:contentH});
     document.body.removeChild(wrap);
