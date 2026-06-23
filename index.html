@@ -900,8 +900,20 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
     <div class="info-box">ℹ️ สร้างใบรับรองโดยไม่ผูกกับวงเงินหรือรายการในระบบ</div>
     <div class="row">
       <div><label>ชื่อบริษัท</label><input id="ct_company" placeholder="บริษัท ..."></div>
-      <div><label>เลขที่เอกสาร</label><input id="ct_docNo" placeholder="เช่น PC-20260617-001"></div>
-      <div><label>วันที่</label><input id="ct_date" type="date"></div>
+      <div>
+        <label>เลขที่เอกสาร</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="ct_docNo" placeholder="รันอัตโนมัติ" style="flex:1">
+          <button class="ghost sm" onclick="genCertDocNo()" title="รันเลขที่ใหม่" style="flex-shrink:0;padding:10px 12px">🔄</button>
+        </div>
+        <div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">
+          <button class="ghost sm" onclick="setCertFmt('RC-{YEAR}{MONTH}{DAY}-{SEQ}')" style="font-size:12px">RC-YYYYMMDD-0001</button>
+          <button class="ghost sm" onclick="setCertFmt('RC-{YEAR}-{SEQ}')" style="font-size:12px">RC-YYYY-0001</button>
+          <button class="ghost sm" onclick="setCertFmt('RC-{SEQ}')" style="font-size:12px">RC-0001</button>
+        </div>
+        <div id="ct_docPreview" style="font-size:12px;color:var(--primary-g);margin-top:4px;font-family:'JetBrains Mono',monospace"></div>
+      </div>
+      <div><label>วันที่</label><input id="ct_date" type="date" onchange="genCertDocNo()"></div>
     </div>
     <div class="row">
       <div><label>ผู้เบิกจ่าย</label><input id="ct_req" placeholder="ชื่อผู้เบิกจ่าย"></div>
@@ -918,8 +930,16 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
         <!-- แถวถูกสร้างโดย JS -->
       </div>
     </div>
-    <div style="margin-top:14px;display:flex;gap:8px">
-      <button onclick="openStandaloneCert()">🖨️ สร้างใบรับรอง</button>
+    <div style="margin-top:10px">
+      <label style="margin-bottom:6px">รูปแบบเลขที่ (กำหนดเอง)</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="ct_fmtInput" placeholder="RC-{YEAR}{MONTH}{DAY}-{SEQ}" style="font-size:14px;flex:1" oninput="genCertDocNo()">
+        <input id="ct_seqPad" type="number" value="4" min="1" max="6" style="width:70px;font-size:14px" title="ความยาวตัวเลข" oninput="genCertDocNo()">
+      </div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="openStandaloneCert(false)">🖨️ ดูใบรับรอง</button>
+      <button onclick="openStandaloneCert(true)" class="sky">☁️ สร้าง + บันทึก Drive</button>
       <button class="ghost" onclick="clearCertForm()">ล้าง</button>
     </div>
   </div>
@@ -971,7 +991,7 @@ function lsSet(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
 
 // ── STATE ──
 let S = {
-  user: null, transactions: [], users: [], settings: {}, funds: [], cats: [], favs: [],
+  user: null, transactions: [], users: [], settings: {}, funds: [], cats: [], favs: [], certDocs: [],
 };
 
 const SETTINGS_KEYS = ['companyName','custodian','approver','fundLimit','maxPerItem','address','taxId','tel','docFormat','docSeqStart','docSeqPad','policy1','policy2','policy3','policy4','policy5'];
@@ -1299,7 +1319,7 @@ function startAutoRefresh() {
   stopAutoRefresh();
   if (_db) {
     // Firebase real-time listeners
-    const keys = ['transactions','users','settings','funds','cats','favs'];
+    const keys = ['transactions','users','settings','funds','cats','favs','certDocs'];
     keys.forEach(key => {
       fbListen('pca/'+key, (val) => {
         if (!S.user) return;
@@ -1309,9 +1329,10 @@ function startAutoRefresh() {
         else if (key==='funds')   S.funds        = val||[];
         else if (key==='cats')    S.cats         = val||[];
         else if (key==='favs')    S.favs         = val||[];
+        else if (key==='certDocs') S.certDocs    = val||[];
         // save to localStorage as cache
         const lsMap = {transactions:LS_TXN,users:LS_USERS,settings:LS_SET,funds:LS_FUNDS,cats:LS_CATS,favs:LS_FAVS};
-        lsSet(lsMap[key], val||[]);
+        if (lsMap[key]) lsSet(lsMap[key], val||[]);
         render();
       });
     });
@@ -1348,11 +1369,12 @@ async function manualRefresh() {
 
 async function loadAllFromFirebase() {
   if (!_db) return;
-  const keys = ['transactions','users','settings','funds','cats','favs'];
+  const keys = ['transactions','users','settings','funds','cats','favs','certDocs'];
   const lsMap = {transactions:LS_TXN,users:LS_USERS,settings:LS_SET,funds:LS_FUNDS,cats:LS_CATS,favs:LS_FAVS};
   await Promise.all(keys.map(async key => {
     const val = await fbGet('pca/'+key);
-    if (val !== null) lsSet(lsMap[key], val);
+    if (key==='certDocs') { if(val!==null) S.certDocs=val; }
+    else if (val !== null && lsMap[key]) lsSet(lsMap[key], val);
   }));
   loadAll();
 }
@@ -2635,17 +2657,66 @@ function genSummaryPDF(txns) {
 // ══════════════════════════════════════════════════════
 let _certRowCount = 1;
 
+// ── รูปแบบเลขที่ใบรับรองอิสระ ──
+const LS_CERT_FMT = 'pca_cert_fmt';
+
+function getCertFmt() {
+  return localStorage.getItem(LS_CERT_FMT) || 'RC-{YEAR}{MONTH}{DAY}-{SEQ}';
+}
+function setCertFmt(fmt) {
+  localStorage.setItem(LS_CERT_FMT, fmt);
+  const el = document.getElementById('ct_fmtInput');
+  if (el) el.value = fmt;
+  genCertDocNo();
+}
+
+function genCertDocNo() {
+  const fmtEl  = document.getElementById('ct_fmtInput');
+  const padEl  = document.getElementById('ct_seqPad');
+  const dateEl = document.getElementById('ct_date');
+  const fmt    = (fmtEl && fmtEl.value.trim()) ? fmtEl.value.trim() : getCertFmt();
+  const pad    = parseInt((padEl && padEl.value) || 4);
+  const d      = (dateEl && dateEl.value) ? new Date(dateEl.value) : new Date();
+  const YEAR   = String(d.getFullYear());
+  const MONTH  = String(d.getMonth()+1).padStart(2,'0');
+  const DAY    = String(d.getDate()).padStart(2,'0');
+  const pattern = fmt.replace('{YEAR}',YEAR).replace('{MONTH}',MONTH).replace('{DAY}',DAY).replace(/\{SEQ\}.*/,'');
+  const certDocs = S.certDocs || [];
+  let max = 0;
+  certDocs.forEach(c => {
+    const dn = String(c.docNo || '');
+    if (dn.startsWith(pattern)) {
+      const n = parseInt(dn.slice(pattern.length), 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
+  });
+  const SEQ = String(max + 1).padStart(pad, '0');
+  const docNo = fmt.replace('{YEAR}',YEAR).replace('{MONTH}',MONTH).replace('{DAY}',DAY).replace('{SEQ}',SEQ);
+  const docNoEl = document.getElementById('ct_docNo');
+  if (docNoEl && !docNoEl._userEdited) docNoEl.value = docNo;
+  const prev = document.getElementById('ct_docPreview');
+  if (prev) prev.textContent = '▸ ' + docNo;
+  return docNo;
+}
+
 function initCertTab() {
-  // ใส่ค่าเริ่มต้น
   const s = S.settings || DEFAULT_S;
   const companyEl = document.getElementById('ct_company');
   if (companyEl && !companyEl.value) companyEl.value = s.companyName || '';
   const dateEl = document.getElementById('ct_date');
   if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0,10);
+  const fmtEl = document.getElementById('ct_fmtInput');
+  if (fmtEl && !fmtEl.value) fmtEl.value = getCertFmt();
+  const docNoEl = document.getElementById('ct_docNo');
+  if (docNoEl) {
+    docNoEl._userEdited = false;
+    docNoEl.addEventListener('input', () => { docNoEl._userEdited = !!docNoEl.value.trim(); });
+  }
   if (!document.getElementById('ct_rows').children.length) {
     _certRowCount = 0;
     addCertRow();
   }
+  genCertDocNo();
 }
 
 function addCertRow() {
@@ -2679,7 +2750,7 @@ function recalcCertTotal() {
 }
 
 function clearCertForm() {
-  ['ct_company','ct_docNo','ct_req','ct_pos','ct_app'].forEach(id => {
+  ['ct_company','ct_req','ct_pos','ct_app'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('ct_date').value = new Date().toISOString().slice(0,10);
@@ -2688,12 +2759,15 @@ function clearCertForm() {
   addCertRow();
   const prev = document.getElementById('ct_total_preview');
   if(prev) prev.textContent = '';
+  const docNoEl = document.getElementById('ct_docNo');
+  if (docNoEl) { docNoEl._userEdited = false; docNoEl.value = ''; }
+  genCertDocNo();
 }
 
-function openStandaloneCert() {
+async function openStandaloneCert(uploadToDrive) {
   const s       = S.settings || DEFAULT_S;
   const company = document.getElementById('ct_company').value.trim() || s.companyName || 'บริษัท';
-  const docNo   = document.getElementById('ct_docNo').value.trim() || genDocNo(document.getElementById('ct_date').value);
+  const docNo   = document.getElementById('ct_docNo').value.trim() || genCertDocNo();
   const dateVal = document.getElementById('ct_date').value;
   const req     = document.getElementById('ct_req').value.trim();
   const pos     = document.getElementById('ct_pos').value.trim();
@@ -2718,7 +2792,6 @@ function openStandaloneCert() {
   const reqSig  = reqUser?.signature||'';
   const appSig  = appUser?.signature||'';
 
-  // ใช้ dlCert logic แต่ส่งข้อมูล custom
   const fake = {
     documentNo: docNo, date: dateVal,
     description: items.map(r=>r.desc).join(', '),
@@ -2726,7 +2799,112 @@ function openStandaloneCert() {
     requester: req, approver: app||appUser?.displayName||'',
     _standaloneItems: items, _pos: pos, _company: company,
   };
+
+  // บันทึก certDocs ลง Firebase เพื่อ track sequence
+  if (!S.certDocs) S.certDocs = [];
+  const alreadySaved = S.certDocs.find(c => c.docNo === docNo);
+  if (!alreadySaved) {
+    const certEntry = { docNo, date: dateVal, company, req, total, savedAt: new Date().toISOString() };
+    S.certDocs.push(certEntry);
+    await writeJson('certDocs', S.certDocs).catch(()=>{});
+  }
+
+  if (uploadToDrive) {
+    showToast('กำลังสร้างและบันทึก PDF ขึ้น Drive...','loading');
+    const html = buildCertHTMLForUpload(fake, items, company, pos, reqSig, appSig);
+    await uploadStandaloneCertToDrive(html, docNo, dateVal);
+  }
+
   dlCertWithItems(fake, items, company, pos, reqSig, appSig);
+
+  // รีเซ็ต docNo เพื่อรันเลขถัดไป
+  const docNoEl = document.getElementById('ct_docNo');
+  if (docNoEl) { docNoEl._userEdited = false; docNoEl.value = ''; }
+  genCertDocNo();
+}
+
+// Upload ใบรับรองอิสระขึ้น Drive โฟลเดอร์แยก
+async function uploadStandaloneCertToDrive(certHtml, docNo, dateStr) {
+  try {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;z-index:-999;font-family:Sarabun,sans-serif';
+    const parser = new DOMParser();
+    const parsed = parser.parseFromString(certHtml, 'text/html');
+    parsed.querySelectorAll('style').forEach(s => {
+      const st = document.createElement('style');
+      st.textContent = s.textContent.replace(/width:\s*\d+mm/g,'width:100%').replace(/width:\s*780px/g,'width:794px');
+      wrap.appendChild(st);
+    });
+    const forceStyle = document.createElement('style');
+    forceStyle.textContent = `*{font-family:'Sarabun',sans-serif!important;box-sizing:border-box}.page{width:794px!important;padding:28px 36px!important;margin:0!important}.sig-file-btn,.sig-upload-hint,label[for^="file_"],input[type="file"],button,.no-print{display:none!important}`;
+    wrap.appendChild(forceStyle);
+    const page = parsed.querySelector('.page');
+    if (page) wrap.appendChild(page.cloneNode(true));
+    else wrap.innerHTML += parsed.body.innerHTML;
+    if (!document.querySelector('#sarabunFont')) {
+      const lnk=document.createElement('link'); lnk.id='sarabunFont'; lnk.rel='stylesheet';
+      lnk.href='https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap';
+      document.head.appendChild(lnk);
+    }
+    document.body.appendChild(wrap);
+    await document.fonts.ready;
+    await new Promise(r=>setTimeout(r,1500));
+    const contentH = wrap.scrollHeight;
+    const canvas = await html2canvas(wrap,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,width:794,height:contentH,windowWidth:794,windowHeight:contentH});
+    document.body.removeChild(wrap);
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const imgData=canvas.toDataURL('image/png');
+    const pdfW=pdf.internal.pageSize.getWidth();
+    const pdfH=pdf.internal.pageSize.getHeight();
+    const imgH=(canvas.height*pdfW)/canvas.width;
+    if(imgH<=pdfH){pdf.addImage(imgData,'PNG',0,0,pdfW,imgH);}
+    else{let posY=0;while(posY<imgH){pdf.addImage(imgData,'PNG',0,-posY,pdfW,imgH);posY+=pdfH;if(posY<imgH)pdf.addPage();}}
+    const pdfBlob = pdf.output('blob');
+    const pdfFile = new File([pdfBlob],`ใบรับรองอิสระ_${docNo}.pdf`,{type:'application/pdf'});
+    // ส่ง action ต่างออกไปให้ Apps Script สร้างโฟลเดอร์ "ใบรับรองอิสระ" แยก
+    const base64 = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(pdfFile); });
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action:   'uploadFile',
+        fileName: pdfFile.name,
+        mimeType: 'application/pdf',
+        base64,
+        date:     dateStr || new Date().toISOString().slice(0,10),
+        docNo:    docNo,
+        rootFolder: 'ใบรับรองอิสระ',
+      })
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    showToast('✅ บันทึก PDF ใบรับรองอิสระใน Drive แล้ว','success');
+  } catch(e) {
+    console.warn('Standalone cert upload failed:', e.message);
+    showToast('บันทึก Drive ล้มเหลว: '+e.message,'error');
+  }
+}
+
+function buildCertHTMLForUpload(t, items, company, pos, reqSig, appSig) {
+  const fmt  = n => new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0));
+  const total = items.reduce((s,r)=>s+r.amt,0);
+  const today = formatThaiDate(t.date);
+  const ROWS  = Math.max(12, items.length + 3);
+  const tableRows = Array.from({length:ROWS},(_,i)=>{
+    const item = items[i];
+    if(item) return `<tr><td>${formatThaiDate(item.date)}</td><td>${item.desc||''}</td><td class="num">${item.amt?fmt(item.amt):''}</td><td>${item.note||''}</td></tr>`;
+    return `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
+  }).join('');
+  const fromDate = formatThaiDate(items[0]?.date||t.date);
+  const toDate   = formatThaiDate(items[items.length-1]?.date||t.date);
+  const sigSlot = (id, savedSig) => savedSig
+    ? `<img src="${savedSig}" style="max-height:72px;max-width:220px;object-fit:contain;display:block;margin:0 auto">`
+    : '';
+  return buildCertHTML({ company, docNo:t.documentNo, today, tableRows,
+    total, bahtText:thbText(total), req:t.requester, pos, app:t.approver,
+    fromDate, toDate, sigSlotReq:sigSlot('req',reqSig), sigSlotApp:sigSlot('app',appSig) });
 }
 
 function dlCertWithItems(t, items, company, pos, reqSig, appSig) {
