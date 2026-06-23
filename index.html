@@ -2767,8 +2767,6 @@ function dlCertWithItems(t, items, company, pos, reqSig, appSig) {
     fromDate, toDate, sigSlotReq:sigSlot('req',reqSig), sigSlotApp:sigSlot('app',appSig) });
 
   showCertModal(html);
-  // อัปโหลดใบรับรองแทนใบเสร็จไปยัง Drive อัตโนมัติ
-  uploadCertHtmlToDrive(html, t.documentNo, t.date).catch(()=>{});
 }
 
 function showCertModal(html) {
