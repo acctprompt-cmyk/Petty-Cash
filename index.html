@@ -1253,10 +1253,26 @@ async function fbGet(path) {
 
 // เขียนข้อมูลไป Firebase
 async function fbSet(path, data) {
-  if (!_db) return;
-  const { ref, set } = window._fbModules;
-  try { await set(ref(_db, path), data); }
-  catch(e) { console.warn('fbSet:', e.message); }
+  // เขียนผ่าน Apps Script proxy (ปลอดภัย — Firebase Rules ปิด write จากภายนอก)
+  try {
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'firebaseSet', path, data })
+    });
+    const result = await resp.json();
+    if (result.error) throw new Error(result.error);
+  } catch(e) { console.warn('fbSet via proxy:', e.message); }
+}
+
+async function fbDelete(path) {
+  try {
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'firebaseDelete', path })
+    });
+    const result = await resp.json();
+    if (result.error) throw new Error(result.error);
+  } catch(e) { console.warn('fbDelete via proxy:', e.message); }
 }
 
 // ฟัง real-time changes
@@ -2253,7 +2269,7 @@ async function clearAllData() {
   try {
     showToast('กำลังล้างข้อมูล...','');
     S.transactions = [];
-    await fbSet('pca/transactions', []);
+    await fbDelete('pca/transactions');
     lsSet(LS_TXN, []);
     document.getElementById('clear_confirm').value = '';
     showToast('✓ ล้างข้อมูลทั้งหมดเรียบร้อย','success');
