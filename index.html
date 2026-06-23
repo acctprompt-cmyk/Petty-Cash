@@ -297,10 +297,31 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
     <label>ชื่อผู้ใช้ (Username)</label>
     <input id="loginUser" placeholder="Username" autocomplete="username">
     <label>รหัสผ่าน</label>
-    <input id="loginPass" type="password" autocomplete="current-password">
+    <input id="loginPass" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
     <button onclick="login()" id="loginBtn" style="width:100%;margin-top:18px;padding:13px;justify-content:center">
       เข้าสู่ระบบ
     </button>
+    <button onclick="showForgotModal()" class="ghost" style="width:100%;margin-top:10px;font-size:13px;color:var(--text2)">
+      🔑 ลืมรหัสผ่าน?
+    </button>
+  </div>
+</div>
+
+<!-- Modal ลืมรหัสผ่าน -->
+<div id="forgotModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:20px;padding:28px;width:100%;max-width:420px;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="font-size:18px;font-weight:700;margin-bottom:6px">🔑 รีเซ็ตรหัสผ่าน</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:18px">ต้องใช้รหัสผ่านของ <strong>ผู้อนุมัติ</strong> หรือ <strong>แอดมิน</strong> เพื่อยืนยัน (ห้ามใช้รหัสของตัวเอง)</div>
+    <label style="font-size:13px;font-weight:600">ชื่อผู้ใช้ที่ต้องการรีเซ็ต</label>
+    <select id="forgot_user" style="width:100%;margin:4px 0 12px"></select>
+    <label style="font-size:13px;font-weight:600">รหัสผ่านผู้อนุมัติ หรือ แอดมิน (เพื่อยืนยัน)</label>
+    <input id="forgot_approver_pwd" type="password" placeholder="รหัสผ่านผู้อนุมัติ / แอดมิน" style="width:100%;margin:4px 0 12px">
+    <label style="font-size:13px;font-weight:600">รหัสผ่านใหม่</label>
+    <input id="forgot_new_pwd" type="password" placeholder="รหัสผ่านใหม่ (อย่างน้อย 4 ตัว)" style="width:100%;margin:4px 0 16px">
+    <div style="display:flex;gap:8px">
+      <button onclick="doForgotPassword()" style="flex:1;padding:11px;background:var(--primary);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700;font-family:inherit">✓ รีเซ็ตรหัสผ่าน</button>
+      <button onclick="document.getElementById('forgotModal').style.display='none'" style="padding:11px 16px;background:var(--surface2);color:var(--text2);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:14px;font-family:inherit">ยกเลิก</button>
+    </div>
   </div>
 </div>
 
@@ -701,30 +722,13 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
       <!-- ── ล้างข้อมูล (เฉพาะผู้อนุมัติ/แอดมิน) ── -->
       <div id="dangerZone" class="hidden">
         <hr class="divider" style="margin:24px 0">
-        <div class="section-title" style="font-size:16px;color:var(--danger)">⚠️ โซนอันตราย</div>
-
-        <!-- รีเซ็ตรหัสผ่าน -->
-        <div style="background:var(--warn-bg);border:1px solid rgba(217,119,6,.2);border-radius:14px;padding:18px;margin-bottom:14px">
-          <div style="font-weight:700;margin-bottom:10px;color:var(--warn)">🔑 รีเซ็ตรหัสผ่านผู้ใช้</div>
-          <div class="row2">
-            <div>
-              <label>เลือกผู้ใช้</label>
-              <select id="reset_user" style="width:100%"></select>
-            </div>
-            <div>
-              <label>รหัสผ่านใหม่</label>
-              <input id="reset_pwd" type="password" placeholder="รหัสผ่านใหม่">
-            </div>
-          </div>
-          <button onclick="resetPassword()" style="margin-top:10px;background:var(--warn);color:#fff;border:none;padding:9px 20px;border-radius:10px;cursor:pointer;font-size:14px;font-family:inherit;font-weight:700">🔑 รีเซ็ตรหัสผ่าน</button>
-        </div>
 
         <!-- ล้างข้อมูลทั้งหมด -->
         <div style="background:var(--danger-bg);border:1px solid rgba(220,38,38,.2);border-radius:14px;padding:18px">
           <div style="font-weight:700;margin-bottom:8px;color:var(--danger)">🗑️ ล้างข้อมูลทั้งหมด</div>
           <div style="font-size:13px;color:var(--text2);margin-bottom:12px">ลบรายการทั้งหมดออกจากระบบ (ผู้ใช้และการตั้งค่าจะยังคงอยู่) ไม่สามารถกู้คืนได้</div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <input id="clear_confirm" placeholder='พิมพ์ "ยืนยันลบข้อมูล" เพื่อยืนยัน' style="flex:1;min-width:200px">
+            <input id="clear_confirm" type="password" placeholder="ใส่รหัสผ่านผู้อนุมัติ หรือ แอดมิน" style="flex:1;min-width:200px">
             <button onclick="clearAllData()" style="background:var(--danger);color:#fff;border:none;padding:9px 20px;border-radius:10px;cursor:pointer;font-size:14px;font-family:inherit;font-weight:700">🗑️ ล้างข้อมูล</button>
           </div>
         </div>
@@ -2241,16 +2245,60 @@ function initSettingsListeners() {
 
 // ── ล้างข้อมูลทั้งหมด ──
 async function clearAllData() {
-  const confirm_txt = document.getElementById('clear_confirm')?.value.trim();
-  if (confirm_txt !== 'ยืนยันลบข้อมูล') return showToast('กรุณาพิมพ์ "ยืนยันลบข้อมูล" ให้ถูกต้อง','error');
+  const pwd = document.getElementById('clear_confirm')?.value.trim();
+  if (!pwd) return showToast('กรุณาใส่รหัสผ่านผู้อนุมัติหรือแอดมิน','error');
+  const verifier = S.users.find(u => (u.role==='ผู้อนุมัติ'||u.role==='แอดมิน') && u.password===pwd);
+  if (!verifier) return showToast('รหัสผ่านไม่ถูกต้อง','error');
   if (!window.confirm('ยืนยันการลบรายการทั้งหมด? ไม่สามารถกู้คืนได้!')) return;
   try {
+    showToast('กำลังล้างข้อมูล...','');
     S.transactions = [];
-    await writeJson('transactions', []);
+    await fbSet('pca/transactions', []);
     lsSet(LS_TXN, []);
     document.getElementById('clear_confirm').value = '';
     showToast('✓ ล้างข้อมูลทั้งหมดเรียบร้อย','success');
     renderTxns();
+    switchTab('dashboard');
+  } catch(e) { showToast('ล้มเหลว: '+e.message,'error'); }
+}
+
+// ── ลืมรหัสผ่าน (จากหน้า Login) ──
+function showForgotModal() {
+  const modal = document.getElementById('forgotModal');
+  const sel   = document.getElementById('forgot_user');
+  if (!sel || !modal) return;
+  const users = lsGet(LS_USERS, []);
+  sel.innerHTML = '<option value="">— เลือกผู้ใช้ที่ลืมรหัส —</option>' +
+    users.map(u=>`<option value="${u.id}">${u.displayName||u.username} (${u.role})</option>`).join('');
+  document.getElementById('forgot_approver_pwd').value = '';
+  document.getElementById('forgot_new_pwd').value = '';
+  modal.style.display = 'flex';
+}
+
+async function doForgotPassword() {
+  const userId      = document.getElementById('forgot_user')?.value;
+  const verifyPwd   = document.getElementById('forgot_approver_pwd')?.value.trim();
+  const newPwd      = document.getElementById('forgot_new_pwd')?.value.trim();
+  if (!userId)    return showToast('กรุณาเลือกผู้ใช้','error');
+  if (!verifyPwd) return showToast('กรุณาใส่รหัสผ่านผู้อนุมัติหรือแอดมิน','error');
+  if (!newPwd || newPwd.length < 4) return showToast('รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร','error');
+  try {
+    const fbUsers = await fbGet('pca/users') || lsGet(LS_USERS, []);
+    // ยืนยันด้วยรหัสผู้อนุมัติ หรือแอดมิน (ยกเว้นถ้าคนที่จะรีเซ็ตคือแอดมินเอง ให้ใช้ผู้อนุมัติยืนยันเท่านั้น)
+    const target   = fbUsers.find(u=>u.id===userId);
+    const verifier = fbUsers.find(u => {
+      if (!u.password || u.password !== verifyPwd) return false;
+      if (u.id === userId) return false; // ห้ามใช้รหัสตัวเองยืนยัน
+      return u.role==='ผู้อนุมัติ' || u.role==='แอดมิน';
+    });
+    if (!verifier) return showToast('รหัสผ่านไม่ถูกต้อง หรือไม่มีสิทธิ์ยืนยัน','error');
+    const idx = fbUsers.findIndex(u=>u.id===userId);
+    if (idx<0) return showToast('ไม่พบผู้ใช้','error');
+    fbUsers[idx].password = newPwd;
+    await fbSet('pca/users', fbUsers);
+    lsSet(LS_USERS, fbUsers);
+    document.getElementById('forgotModal').style.display = 'none';
+    showToast(`✓ รีเซ็ตรหัสผ่านของ "${fbUsers[idx].displayName||fbUsers[idx].username}" เรียบร้อย`,'success');
   } catch(e) { showToast('ล้มเหลว: '+e.message,'error'); }
 }
 
