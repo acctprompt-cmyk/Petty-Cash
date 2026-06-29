@@ -20,7 +20,7 @@
   --glow:0 0 20px rgba(79,70,229,.2);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Noto Sans Thai',Tahoma,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:clamp(16px,2.2vw,27px);line-height:1.6}
+body{font-family:'Noto Sans Thai',Tahoma,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:18px;line-height:1.6}
 .hidden{display:none!important}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--bg2)}
@@ -102,10 +102,8 @@ body{font-family:'Noto Sans Thai',Tahoma,sans-serif;background:var(--bg);color:v
 
 /* ── FORM ── */
 label{display:block;font-weight:600;font-size:14px;color:var(--text2);margin:11px 0 5px;letter-spacing:.05em;text-transform:uppercase}
-#appView label{font-size:28px;letter-spacing:.02em}
 input,select,textarea{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;
   background:var(--bg2);color:var(--text);font-family:inherit;font-size:17px;transition:all .2s}
-#appView input,#appView select,#appView textarea{font-size:28px;padding:13px 16px}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
 textarea{min-height:78px;resize:vertical}
 input[type="file"]{padding:8px;cursor:pointer}
@@ -116,7 +114,6 @@ select option{background:var(--surface)}
 button{border:none;background:var(--primary);color:#fff;padding:11px 18px;border-radius:10px;
   font-weight:600;cursor:pointer;font-family:inherit;font-size:17px;transition:all .18s;
   display:inline-flex;align-items:center;gap:7px}
-#appView button:not(.nav button){font-size:22px;padding:12px 20px}
 button:hover{background:var(--primary-h);transform:translateY(-1px);box-shadow:0 4px 16px rgba(59,130,246,.35)}
 button:active{transform:translateY(0)}
 button.ghost{background:transparent;color:var(--text2);border:1.5px solid var(--border)}
@@ -125,7 +122,7 @@ button.sky{background:var(--accent)}
 button.sky:hover{background:#0891b2}
 button.danger{background:var(--danger)}
 button.danger:hover{background:#dc2626}
-button.sm{padding:8px 14px;font-size:20px;border-radius:8px}
+button.sm{padding:6px 12px;font-size:14px;border-radius:8px}
 button:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
 
 /* ── HEADER ── */
@@ -133,13 +130,13 @@ button:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
 .brand{display:flex;align-items:center;gap:12px}
 .brand-mark{width:40px;height:40px;background:linear-gradient(135deg,var(--primary),var(--accent));
   border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
-.company-name{font-size:28px;font-weight:700}
+.company-name{font-size:20px;font-weight:700}
 .header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 
 /* ── NAV ── */
 .nav{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px;background:var(--surface);
   border:1px solid var(--border);border-radius:14px;padding:5px}
-.nav button{background:transparent;color:var(--text2);border:none;padding:10px 18px;border-radius:10px;font-size:20px}
+.nav button{background:transparent;color:var(--text2);border:none;padding:9px 16px;border-radius:10px;font-size:13.5px}
 .nav button:hover{background:var(--surface2);color:var(--text);transform:none;box-shadow:none}
 .nav button.active{background:linear-gradient(135deg,var(--primary),var(--primary-h));color:#fff;
   box-shadow:0 2px 12px rgba(59,130,246,.4)}
@@ -149,15 +146,12 @@ button:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
 table{width:100%;border-collapse:collapse;min-width:720px}
 th{background:var(--bg2);color:var(--text2);font-size:13px;font-weight:700;letter-spacing:.06em;
   text-transform:uppercase;padding:10px 14px;text-align:left;border-bottom:2px solid var(--border)}
-#appView th{font-size:22px;padding:12px 16px}
 td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle}
-#appView td{font-size:22px;padding:13px 16px}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(59,130,246,.04)}
 
 /* ── BADGE ── */
 .badge{display:inline-flex;align-items:center;padding:4px 11px;border-radius:999px;font-size:14px;font-weight:700}
-#appView .badge{font-size:20px;padding:5px 13px}
 .badge.approved{background:var(--success-bg);color:var(--success);border:1px solid rgba(16,185,129,.25)}
 .badge.pending{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(245,158,11,.25)}
 .badge.rejected{background:var(--danger-bg);color:var(--danger);border:1px solid rgba(239,68,68,.25)}
@@ -166,8 +160,8 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
 @media(max-width:860px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px}
-.stat-label{font-size:20px;color:var(--text2);font-weight:700;letter-spacing:.03em;text-transform:uppercase;margin-bottom:8px}
-.stat-val{font-size:40px;font-weight:700}
+.stat-label{font-size:13px;color:var(--text2);font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px}
+.stat-val{font-size:26px;font-weight:700}
 .stat-val.blue{color:var(--primary-g)} .stat-val.green{color:var(--success)}
 .stat-val.orange{color:var(--warn)} .stat-val.red{color:var(--danger)}
 
@@ -182,11 +176,10 @@ tr:hover td{background:rgba(59,130,246,.04)}
 
 /* ── MISC ── */
 .muted{font-size:14px;color:var(--text2)}
-#appView .muted{font-size:20px}
 .mono{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--primary-g)}
 .info-box{background:var(--info-bg);border:1px solid rgba(59,130,246,.2);border-radius:12px;
   padding:13px 16px;color:var(--primary-g);font-size:16px;margin-bottom:16px}
-.section-title{font-size:36px;font-weight:700;margin-bottom:18px}
+.section-title{font-size:22px;font-weight:700;margin-bottom:18px}
 .divider{border:none;border-top:1px solid var(--border);margin:18px 0}
 a{color:var(--primary-g);text-decoration:none} a:hover{text-decoration:underline}
 code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:2px 8px;
@@ -1600,8 +1593,10 @@ function renderTxns() {
         `<button class="ghost sm" onclick='dlCert(${JSON.stringify(JSON.stringify(t))})'>📄 ดาวน์โหลด</button>`:
         (t.receipt||'-')}</td>
       <td style="display:flex;gap:5px;flex-wrap:wrap">
+        ${t.status==='รออนุมัติ' ? `
         <button class="app-btn sky sm" onclick="approveWithOptions('${t.id}')">✓ อนุมัติ</button>
         <button class="rej-btn danger sm" onclick="updateStatus('${t.id}','ไม่อนุมัติ')">✗ ไม่อนุมัติ</button>
+        ` : `<span style="font-size:12px;color:var(--muted)">${t.status==='อนุมัติ'?'✓ อนุมัติแล้ว':'✗ ไม่อนุมัติ'}</span>`}
       </td>
     </tr>`).join('') :
     `<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:28px">ยังไม่มีรายการ — บันทึกรายการแรกได้เลย!</td></tr>`;
@@ -2645,14 +2640,25 @@ function genSummaryPDF(txns) {
     days[d].push(t);
   });
 
-  let seq=1;
+  // คำนวณ รับ/จ่าย/คงเหลือ สะสม
+  let balance = 0;
+  let totalIn = 0, totalOut = 0;
   const rows = Object.entries(days).sort().map(([date, items]) =>
     items.map(t=>{
       const isFirst = t===items[0];
+      const isTopup = t.type==='replenish';
+      const amt = Number(t.netPaid||t.amount||0);
+      const amtIn  = isTopup ? amt : 0;
+      const amtOut = isTopup ? 0 : amt;
+      balance += amtIn - amtOut;
+      totalIn  += amtIn;
+      totalOut += amtOut;
       return `<tr>
         <td style="text-align:center;border:1px solid #999;padding:4px 6px;white-space:nowrap">${isFirst?formatThaiDate(date):''}</td>
-        <td style="border:1px solid #999;padding:4px 8px">${t.description||''}</td>
-        <td style="text-align:right;border:1px solid #999;padding:4px 8px">${t.netPaid||t.amount?fmt(t.netPaid||t.amount):''}</td>
+        <td style="border:1px solid #999;padding:4px 8px">${t.description||''}${isTopup?' <span style="color:#1d6f42;font-size:12px;font-weight:700">[เติมเงิน]</span>':''}</td>
+        <td style="text-align:right;border:1px solid #999;padding:4px 8px;color:#1d6f42;font-weight:${amtIn?'700':'400'}">${amtIn?fmt(amtIn):''}</td>
+        <td style="text-align:right;border:1px solid #999;padding:4px 8px;color:#c0392b;font-weight:${amtOut?'700':'400'}">${amtOut?fmt(amtOut):''}</td>
+        <td style="text-align:right;border:1px solid #999;padding:4px 8px;font-weight:600;color:${balance>=0?'#1d6f42':'#c0392b'}">${fmt(balance)}</td>
         <td style="border:1px solid #999;padding:4px 8px">${t.note||''}</td>
       </tr>`;
     }).join('')
@@ -2671,7 +2677,7 @@ function genSummaryPDF(txns) {
   table{width:100%;border-collapse:collapse;margin-bottom:8px}
   th{background:#dbeafe;border:1px solid #64748b;padding:6px 8px;font-size:14px;font-weight:700;text-align:center}
   td{font-size:14px;vertical-align:top}
-  .total-row td{font-weight:700;background:#f1f5f9;border:1px solid #64748b;padding:5px 8px}
+  .total-row td{font-weight:700;background:#f1f5f9;border:1px solid #64748b;padding:5px 8px;text-align:right}
   .baht-row td{border:1px solid #64748b;padding:5px 8px;font-size:14px}
   .sig{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:50px;text-align:center}
   .sig-line{border-top:1px solid #333;margin-top:48px;padding-top:6px;font-size:13px}
@@ -2684,20 +2690,24 @@ function genSummaryPDF(txns) {
   <h2>สรุปรายการเบิกเงินสดย่อย — ${period}</h2>
   <table>
     <thead><tr>
-      <th style="width:130px">วัน เดือน ปี</th>
-      <th>รายละเอียดการจ่าย</th>
-      <th style="width:120px">จำนวนเงิน (บาท)</th>
-      <th style="width:110px">หมายเหตุ</th>
+      <th style="width:120px">วัน เดือน ปี</th>
+      <th>รายละเอียด</th>
+      <th style="width:110px">รับ (บาท)</th>
+      <th style="width:110px">จ่าย (บาท)</th>
+      <th style="width:110px">คงเหลือ (บาท)</th>
+      <th style="width:100px">หมายเหตุ</th>
     </tr></thead>
     <tbody>${rows}</tbody>
     <tfoot>
       <tr class="total-row">
-        <td colspan="2" style="text-align:center">รวมทั้งสิ้น</td>
-        <td style="text-align:right">${fmt(total)}</td>
+        <td colspan="2" style="text-align:center;font-weight:700">รวมทั้งสิ้น</td>
+        <td style="color:#1d6f42">${fmt(totalIn)}</td>
+        <td style="color:#c0392b">${fmt(totalOut)}</td>
+        <td style="color:${balance>=0?'#1d6f42':'#c0392b'}">${fmt(balance)}</td>
         <td></td>
       </tr>
       <tr class="baht-row">
-        <td colspan="4" style="text-align:center">รวมทั้งสิ้น (ตัวอักษร) &nbsp; ${thbText(total)}</td>
+        <td colspan="6" style="text-align:center">คงเหลือสุทธิ (ตัวอักษร) &nbsp; ${thbText(Math.abs(balance))} ${balance<0?'(ติดลบ)':''}</td>
       </tr>
     </tfoot>
   </table>
@@ -3592,6 +3602,75 @@ function previewAlert() {
 }
 
 // ── Render Funds Tab (cards + table) ──
+
+// ══ เติมเงินสดย่อย / คืนสำรองจ่าย ══
+function openTopupModal(fundId) {
+  const f = S.funds.find(x=>x.id===fundId);
+  if (!f) return;
+  const isReserve = f.type==='reserve';
+  const label = isReserve ? 'คืนสำรองจ่าย' : 'เติมเงินสดย่อย';
+  const icon  = isReserve ? '🏦' : '💰';
+
+  document.getElementById('topupModalOverlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'topupModalOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:8000;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-radius:20px;padding:28px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="font-size:18px;font-weight:700;margin-bottom:6px">${icon} ${label}</div>
+      <div style="font-size:14px;color:var(--text2);margin-bottom:20px">วงเงิน: <strong>${f.name}</strong></div>
+      <label style="font-size:13px;font-weight:600;color:var(--text2)">วันที่</label>
+      <input type="date" id="topup_date" value="${new Date().toISOString().slice(0,10)}" style="width:100%;margin:4px 0 14px">
+      <label style="font-size:13px;font-weight:600;color:var(--text2)">จำนวนเงิน (บาท) *</label>
+      <input type="number" id="topup_amount" placeholder="0.00" min="0" step="0.01" style="width:100%;margin:4px 0 14px">
+      <label style="font-size:13px;font-weight:600;color:var(--text2)">รายละเอียด</label>
+      <input type="text" id="topup_desc" placeholder="${isReserve?'คืนสำรองจ่ายประจำเดือน...':'เติมวงเงินเงินสดย่อย...'}" style="width:100%;margin:4px 0 14px">
+      <label style="font-size:13px;font-weight:600;color:var(--text2)">หมายเหตุ</label>
+      <input type="text" id="topup_note" placeholder="ถ้ามี..." style="width:100%;margin:4px 0 20px">
+      <div style="display:flex;gap:8px">
+        <button onclick="confirmTopup('${fundId}','${isReserve}')" style="flex:1;padding:12px;background:var(--success);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:15px;font-weight:700;font-family:inherit">${icon} บันทึก${label}</button>
+        <button onclick="document.getElementById('topupModalOverlay').remove()" style="padding:12px 16px;background:var(--surface2);color:var(--text2);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:14px;font-family:inherit">ยกเลิก</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(()=>document.getElementById('topup_amount')?.focus(),100);
+}
+
+async function confirmTopup(fundId, isReserveStr) {
+  const isReserve = isReserveStr==='true';
+  const date   = document.getElementById('topup_date')?.value || new Date().toISOString().slice(0,10);
+  const amount = parseFloat(document.getElementById('topup_amount')?.value||0);
+  const desc   = document.getElementById('topup_desc')?.value.trim() || (isReserve?'คืนสำรองจ่าย':'เติมเงินสดย่อย');
+  const note   = document.getElementById('topup_note')?.value.trim() || '';
+  const f      = S.funds.find(x=>x.id===fundId);
+  if (!f) return;
+  if (!amount || amount<=0) return showToast('กรอกจำนวนเงิน','error');
+
+  const record = {
+    id:         'T-'+uid(),
+    documentNo: genDocNo(date),
+    date,
+    requester:  S.user?.displayName||'',
+    description: desc,
+    category:   isReserve ? 'คืนสำรองจ่าย' : 'เติมเงินสดย่อย',
+    fundId,
+    type:       'replenish',
+    netPaid:    amount,
+    amount,
+    note,
+    status:     'อนุมัติ',
+    receipt:    '-',
+    createdAt:  new Date().toISOString(),
+  };
+
+  S.transactions.unshift(record);
+  await writeJson('transactions', S.transactions);
+  document.getElementById('topupModalOverlay')?.remove();
+  renderFundsTab();
+  render();
+  showToast(`✅ บันทึก${isReserve?'คืนสำรองจ่าย':'เติมเงิน'} ${thb(amount)} แล้ว`, 'success');
+}
+
 function renderFundsTab() {
   const cardsEl = document.getElementById('fd_cards');
   const bodyEl  = document.getElementById('fundsBody');
@@ -3662,9 +3741,11 @@ function renderFundsTab() {
           </div>
           ${remainDisplay}
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
           <div class="muted" style="font-size:12px">วงเงิน ${unlimited?'ไม่จำกัด':thb(limit)} · ${f.owner||'ไม่ระบุ'}</div>
-          <div style="display:flex;gap:6px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${!isReserve ? `<button class="sky sm fund-manage-btn" onclick="openTopupModal('${f.id}')">💰 เติมเงิน</button>` : ''}
+            ${isReserve  ? `<button class="sky sm fund-manage-btn" onclick="openTopupModal('${f.id}')">🏦 คืนสำรอง</button>` : ''}
             <button class="ghost sm" onclick='editFund(${JSON.stringify(JSON.stringify(f))})'>แก้ไข</button>
             <button class="danger sm fund-manage-btn" onclick="deleteFund('${f.id}')">ลบ</button>
           </div>
