@@ -3074,20 +3074,21 @@ function buildCertHTML({company,address,docNo,today,tableRows,total,bahtText,req
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Sarabun',sans-serif;font-size:15px;color:#111;background:#fff}
-  .page{width:780px;margin:0 auto;padding:28px 36px 36px;border:1px solid #ccc}
-  .hd-title{text-align:center;font-size:18px;font-weight:700;margin-bottom:4px}
-  .hd-sub{text-align:center;font-size:15px;margin-bottom:12px}
-  .dotline{display:inline-block;border-bottom:1px solid #333;vertical-align:bottom;margin:0 4px}
-  .dl-lg{min-width:220px} .dl-md{min-width:130px} .dl-sm{min-width:80px}
+  .page{width:780px;margin:0 auto;padding:28px 36px 36px;border:1px solid #ccc;position:relative}
+  .hd-title{text-align:center;font-size:20px;font-weight:700;margin-bottom:6px}
+  .hd-company{text-align:center;font-size:19px;font-weight:700;margin-bottom:4px}
+  .hd-address{text-align:right;font-size:14px;color:#444;margin-bottom:10px;line-height:1.6}
+  .dl{display:inline-block;vertical-align:bottom;margin:0 4px}
+  .dl-lg{min-width:220px;border-bottom:1px solid #333} .dl-md{min-width:130px;border-bottom:1px solid #333} .dl-sm{min-width:80px;border-bottom:1px solid #333}
   table.items{width:100%;border-collapse:collapse;margin-bottom:0}
   table.items th{border:1px solid #333;padding:5px 8px;font-size:15px;font-weight:700;text-align:center}
   table.items td{border:1px solid #333;padding:4px 8px;font-size:15px;height:26px}
   td.num{text-align:right}
   .tfoot-sum td{border:1px solid #333;padding:5px 8px;font-size:15px;font-weight:700;text-align:center}
   .remark{font-size:15px;line-height:2;margin-top:10px}
+  .baht-text{text-align:center;font-size:15px;font-weight:600;margin-top:6px}
   .sig-wrap{margin-top:16px;text-align:center}
   .sig-line{font-size:15px;line-height:2.2}
-  .note-bottom{font-size:13px;color:#555;margin-top:16px;border-top:1px solid #ccc;padding-top:8px;text-align:center}
   @media print{
     .no-print{display:none!important}
     body{background:#fff}
@@ -3097,13 +3098,14 @@ function buildCertHTML({company,address,docNo,today,tableRows,total,bahtText,req
     table.items th,.tfoot-sum td{padding:3px 6px!important;font-size:13px!important}
     .remark{font-size:13px!important}
     .sig-line{font-size:13px!important}
+    .baht-text{font-size:13px!important}
     @page{size:A4 portrait;margin:10mm 14mm}
   }
 </style></head><body>
 <div class="page">
+  ${address ? `<div class="hd-address">${address}</div>` : ''}
   <div class="hd-title">ใบรับรองแทนใบเสร็จรับเงิน</div>
-  <div class="hd-sub"><span class="dotline dl-lg">${company}</span> (ผู้ซื้อ/ผู้รับบริการ)</div>
-  ${address ? `<div style="text-align:center;font-size:14px;color:#444;margin-bottom:10px">${address}</div>` : ''}
+  <div class="hd-company">${company}</div>
   <table class="items">
     <thead>
       <tr>
@@ -3122,29 +3124,32 @@ function buildCertHTML({company,address,docNo,today,tableRows,total,bahtText,req
       </tr>
     </tfoot>
   </table>
+  <div class="baht-text">รวมทั้งสิ้น (ตัวอักษร) ${bahtText}</div>
   <div class="remark">
-    <div>รวมทั้งสิ้น (ตัวอักษร) <span class="dotline dl-lg">${bahtText}</span></div>
-    <div>ข้าพเจ้า <span class="dotline dl-lg">${req||''}</span> (ผู้เบิกจ่าย) ตำแหน่ง<span class="dotline dl-md">${pos||''}</span></div>
+    <div>ข้าพเจ้า <span class="dl dl-lg">${req||''}</span> (ผู้เบิกจ่าย) ตำแหน่ง<span class="dl dl-md">${pos||''}</span></div>
     <div>ขอรับรองว่า รายจ่ายข้างต้นนี้ไม่อาจเรียกเก็บใบเสร็จรับเงินจากผู้รับได้ และข้าพเจ้าได้จ่ายเงินไปในงานของทาง</div>
-    <div>บริษัท / ห้างหุ้นส่วนจำกัด <span class="dotline dl-lg">${company}</span> โดยแท้ ตั้งแต่วันที่<span class="dotline dl-md">${fromDate}</span>ถึงวันที่<span class="dotline dl-md">${toDate}</span></div>
+    <div><span class="dl dl-lg">${company}</span> โดยแท้ ตั้งแต่วันที่<span class="dl dl-md">${fromDate}</span>ถึงวันที่<span class="dl dl-md">${toDate}</span></div>
   </div>
   <div class="sig-wrap">
-    <div style="margin-top:20px">
-      <div style="min-height:56px;display:flex;align-items:center;justify-content:center;margin-bottom:2px">
+    <div style="margin-top:24px">
+      <div style="min-height:72px;display:flex;align-items:center;justify-content:center;margin-bottom:4px">
         ${sigSlotReq||''}
       </div>
       <div class="sig-line">ลงชื่อ...........................................................................(ผู้เบิกจ่าย)</div>
       <div style="font-size:14px">(${req||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'})</div>
     </div>
-    <div style="margin-top:20px">
-      <div style="min-height:56px;display:flex;align-items:center;justify-content:center;margin-bottom:2px">
+    <div style="margin-top:28px">
+      <div style="min-height:72px;display:flex;align-items:center;justify-content:center;margin-bottom:4px">
         ${sigSlotApp||''}
       </div>
       <div class="sig-line">ลงชื่อ...........................................................................(ผู้อนุมัติ)</div>
       <div style="font-size:14px">(${app||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'})</div>
     </div>
   </div>
-  <div class="note-bottom">(เป็นเอกสารตัวอย่างเพื่อประกอบความเข้าใจเท่านั้น อาจไม่ครอบคลุมทุกกิจการ จึงต้องมีการปรับใช้ให้เหมาะสม)</div>
+  <div style="margin-top:24px;font-size:15px;line-height:2">
+    <div><strong>สำหรับบัญชี</strong></div>
+    <div>จ่ายผ่าน (เงินสดย่อย/โอนเงิน) เมื่อวันที่<span class="dl dl-md"></span></div>
+  </div>
 </div>
 <script>
 function loadSig(id,input){if(!input.files||!input.files[0])return;const r=new FileReader();r.onload=e=>{const img=document.getElementById('img_'+id);if(img){img.src=e.target.result;img.style.display='block';const wrap=document.getElementById('wrap_'+id);if(wrap){wrap.querySelectorAll('label,input[type=file],div').forEach(el=>el.style.display='none');img.style.display='block';}}};r.readAsDataURL(input.files[0]);}
