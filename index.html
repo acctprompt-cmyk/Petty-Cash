@@ -342,6 +342,43 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
     <button onclick="showForgotModal()" class="ghost" style="width:100%;margin-top:10px;font-size:13px;color:var(--text2)">
       🔑 ลืมรหัสผ่าน?
     </button>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);text-align:center">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:8px">ใช้งานครั้งแรก?</div>
+      <button onclick="showRegisterModal()" class="ghost" style="width:100%;font-size:14px;color:var(--primary);border-color:var(--primary)">
+        👤 ลงทะเบียนผู้ขอเบิก (ครั้งแรก)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal ลงทะเบียนผู้ขอเบิก -->
+<div id="registerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:20px;padding:28px;width:100%;max-width:480px;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto">
+    <div style="font-size:18px;font-weight:700;margin-bottom:6px">👤 ลงทะเบียนผู้ขอเบิก</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:18px">กรอกข้อมูลเพื่อสร้างบัญชีผู้ขอเบิกของคุณ</div>
+    <label style="font-size:13px;font-weight:600">ชื่อ-นามสกุล *</label>
+    <input id="reg_name" placeholder="ชื่อ-นามสกุล" style="width:100%;margin:4px 0 12px">
+    <label style="font-size:13px;font-weight:600">Username *</label>
+    <input id="reg_username" placeholder="ตัวอักษรภาษาอังกฤษ/ตัวเลข" style="width:100%;margin:4px 0 12px">
+    <label style="font-size:13px;font-weight:600">รหัสผ่าน * (อย่างน้อย 4 ตัว)</label>
+    <input id="reg_pass" type="password" placeholder="รหัสผ่าน" style="width:100%;margin:4px 0 12px">
+    <label style="font-size:13px;font-weight:600">ลายเซ็น (วาดหรืออัปโหลด)</label>
+    <div style="border:1.5px dashed var(--border);border-radius:10px;padding:10px;margin:4px 0 8px;background:var(--bg2)">
+      <canvas id="regSigCanvas" width="400" height="120"
+        style="width:100%;height:120px;background:#fff;border-radius:8px;border:1px solid var(--border);cursor:crosshair;touch-action:none">
+      </canvas>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button type="button" onclick="clearRegSig()" class="ghost sm" style="font-size:12px">🗑️ ล้าง</button>
+        <label style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px">
+          📁 อัปโหลดรูปลายเซ็น
+          <input type="file" id="regSigFile" accept="image/*" style="display:none" onchange="loadRegSigFile(this)">
+        </label>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button onclick="submitRegister()" style="flex:1;padding:11px;background:var(--success);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700;font-family:inherit">✅ สร้างบัญชี</button>
+      <button onclick="document.getElementById('registerModal').style.display='none'" style="padding:11px 16px;background:var(--surface2);color:var(--text2);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:14px;font-family:inherit">ยกเลิก</button>
+    </div>
   </div>
 </div>
 
@@ -1043,6 +1080,109 @@ window.addEventListener('load', () => {
 });
 
 // ── AUTH ──
+
+// ══ ลงทะเบียนผู้ขอเบิกครั้งแรก ══
+let _regSigCtx = null, _regSigCanvas = null, _regSigDrawing = false, _regSigData = '';
+
+function showRegisterModal() {
+  document.getElementById('registerModal').style.display = 'flex';
+  setTimeout(() => {
+    _regSigCanvas = document.getElementById('regSigCanvas');
+    if (!_regSigCanvas) return;
+    _regSigCtx = _regSigCanvas.getContext('2d');
+    _regSigCtx.strokeStyle = '#1e3a5f';
+    _regSigCtx.lineWidth = 2;
+    _regSigCtx.lineCap = 'round';
+    const start = e => {
+      _regSigDrawing = true;
+      const r = _regSigCanvas.getBoundingClientRect();
+      const sx = _regSigCanvas.width/r.width, sy = _regSigCanvas.height/r.height;
+      const cx = ((e.clientX||e.touches[0].clientX)-r.left)*sx;
+      const cy = ((e.clientY||e.touches[0].clientY)-r.top)*sy;
+      _regSigCtx.beginPath(); _regSigCtx.moveTo(cx,cy);
+      e.preventDefault();
+    };
+    const draw = e => {
+      if (!_regSigDrawing) return;
+      const r = _regSigCanvas.getBoundingClientRect();
+      const sx = _regSigCanvas.width/r.width, sy = _regSigCanvas.height/r.height;
+      const cx = ((e.clientX||e.touches[0].clientX)-r.left)*sx;
+      const cy = ((e.clientY||e.touches[0].clientY)-r.top)*sy;
+      _regSigCtx.lineTo(cx,cy); _regSigCtx.stroke();
+      e.preventDefault();
+    };
+    const stop = () => { _regSigDrawing = false; };
+    _regSigCanvas.addEventListener('mousedown', start);
+    _regSigCanvas.addEventListener('mousemove', draw);
+    _regSigCanvas.addEventListener('mouseup', stop);
+    _regSigCanvas.addEventListener('mouseleave', stop);
+    _regSigCanvas.addEventListener('touchstart', start, {passive:false});
+    _regSigCanvas.addEventListener('touchmove', draw, {passive:false});
+    _regSigCanvas.addEventListener('touchend', stop);
+  }, 100);
+}
+
+function clearRegSig() {
+  if (_regSigCtx && _regSigCanvas) {
+    _regSigCtx.clearRect(0,0,_regSigCanvas.width,_regSigCanvas.height);
+  }
+  _regSigData = '';
+}
+
+function loadRegSigFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    _regSigData = e.target.result;
+    if (_regSigCtx && _regSigCanvas) {
+      const img = new Image();
+      img.onload = () => {
+        _regSigCtx.clearRect(0,0,_regSigCanvas.width,_regSigCanvas.height);
+        _regSigCtx.drawImage(img,0,0,_regSigCanvas.width,_regSigCanvas.height);
+      };
+      img.src = _regSigData;
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function submitRegister() {
+  const name     = document.getElementById('reg_name')?.value.trim();
+  const username = document.getElementById('reg_username')?.value.trim();
+  const pass     = document.getElementById('reg_pass')?.value.trim();
+  if (!name || !username || !pass) return showToast('กรอกข้อมูลให้ครบ','error');
+  if (pass.length < 4) return showToast('รหัสผ่านต้องมีอย่างน้อย 4 ตัว','error');
+  // ดึงลายเซ็น
+  let signature = _regSigData;
+  if (!signature && _regSigCanvas) {
+    const blank = document.createElement('canvas');
+    blank.width = _regSigCanvas.width; blank.height = _regSigCanvas.height;
+    signature = (_regSigCanvas.toDataURL() !== blank.toDataURL()) ? _regSigCanvas.toDataURL() : '';
+  }
+  // init Firebase
+  if (!_db) { initFirebase(); await new Promise(r=>setTimeout(r,1200)); }
+  const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+  // ดึง users ปัจจุบัน
+  const fbUsers = await fbGet(basePath+'users') || [];
+  // ตรวจ username ซ้ำ
+  if (fbUsers.find(u=>u.username===username)) return showToast('Username นี้ถูกใช้แล้ว','error');
+  // สร้าง user ใหม่ (role: ผู้ขอเบิก)
+  const newUser = {
+    id: 'U-'+uid(), username, displayName: name,
+    role: 'ผู้ขอเบิก', password: pass, isActive: true, signature
+  };
+  fbUsers.push(newUser);
+  S.users = fbUsers;
+  await fbSet(basePath+'users', fbUsers);
+  lsSet(LS_USERS, fbUsers);
+  document.getElementById('registerModal').style.display = 'none';
+  // auto-fill login
+  document.getElementById('loginUser').value = username;
+  document.getElementById('loginPass').value = pass;
+  showToast('✅ สร้างบัญชีเรียบร้อย! กดเข้าสู่ระบบได้เลย','success');
+}
+
 async function login() {
   const username = document.getElementById('loginUser').value.trim();
   const password = document.getElementById('loginPass').value.trim();
@@ -1501,7 +1641,8 @@ function applyPerms() {
 
   // ── TAB visibility ──
   // ผู้ขอเบิก: ซ่อน รายการทั้งหมด + วงเงิน
-  document.getElementById('tabTransactionsBtn').classList.toggle('hidden', isReq);
+  // ผู้ขอเบิกดูรายการย้อนหลังของตัวเองได้
+  document.getElementById('tabTransactionsBtn').classList.remove('hidden');
   document.getElementById('tabFundsBtn').classList.toggle('hidden', isReq);
   // Users + Settings: เฉพาะ approver + admin
   document.getElementById('tabUsersBtn').classList.toggle('hidden', isReq);
@@ -2229,6 +2370,9 @@ function buildCertForRecord(t) {
     if(i===0) return `<tr><td style="white-space:nowrap;border:1px solid #64748b;padding:4px 8px;width:145px">${today}</td><td style="border:1px solid #64748b;padding:4px 8px">${t.description||''}</td><td style="text-align:right;border:1px solid #64748b;padding:4px 8px;width:140px">${fmt(net)}</td><td style="border:1px solid #64748b;padding:4px 8px;width:130px">${t.note||''}</td></tr>`;
     return `<tr><td style="border:1px solid #64748b;padding:4px 8px;height:22px">&nbsp;</td><td style="border:1px solid #64748b;padding:4px 8px">&nbsp;</td><td style="border:1px solid #64748b;padding:4px 8px">&nbsp;</td><td style="border:1px solid #64748b;padding:4px 8px">&nbsp;</td></tr>`;
   }).join('');
+  // ดึงลายเซ็นผู้อนุมัติอัตโนมัติ
+  const allApprovers = S.users.filter(u=>u.role==='ผู้อนุมัติ'&&u.isActive&&u.signature);
+  const autoAppSig = allApprovers.length ? allApprovers[0].signature : appSig;
   const sigSlot = (saved) => saved
     ? `<img src="${saved}" style="max-height:56px;max-width:200px;object-fit:contain;display:block;margin:0 auto">`
     : '';
@@ -2246,7 +2390,7 @@ function buildCertForRecord(t) {
     fromDate:   today,
     toDate:     today,
     sigSlotReq: sigSlot(reqSig),
-    sigSlotApp: sigSlot(appSig),
+    sigSlotApp: sigSlot(autoAppSig),
   });
 }
 
