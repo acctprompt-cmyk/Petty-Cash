@@ -3766,7 +3766,7 @@ function renderFundsTab() {
           <div class="muted" style="font-size:12px">วงเงิน ${unlimited?'ไม่จำกัด':thb(limit)} · ${f.owner||'ไม่ระบุ'}</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             ${!isReserve ? `<button class="sky sm fund-manage-btn" onclick="openTopupModal('${f.id}')">💰 เติมเงิน</button>` : ''}
-            ${isReserve  ? `<button class="sky sm fund-manage-btn" onclick="openTopupModal('${f.id}')">🏦 คืนสำรอง</button>` : ''}
+            ${isReserve  ? `<button class="sky sm fund-manage-btn" onclick="openTopupModal('${f.id}')">🏦 คืนเงิน</button>` : ''}
             <button class="ghost sm" onclick='editFund(${JSON.stringify(JSON.stringify(f))})'>แก้ไข</button>
             <button class="danger sm fund-manage-btn" onclick="deleteFund('${f.id}')">ลบ</button>
           </div>
