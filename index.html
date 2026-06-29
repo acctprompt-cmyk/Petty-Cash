@@ -1192,8 +1192,9 @@ async function login() {
   // init Firebase ก่อน
   if (!_db) { initFirebase(); await new Promise(r=>setTimeout(r,1200)); }
   const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
-  // ดึง users จาก Firebase ก่อนเพื่อ login
-  const fbUsers = await fbGet(basePath+'users');
+  // ดึง users จาก Firebase ก่อนเพื่อ login — fallback pca/users ถ้าไม่เจอ
+  let fbUsers = await fbGet(basePath+'users');
+  if (!fbUsers || !fbUsers.length) fbUsers = await fbGet('pca/users');
   if (fbUsers) { S.users = fbUsers; lsSet(LS_USERS, fbUsers); }
   else { S.users = lsGet(LS_USERS, DEFAULT_USERS); }
   const matched = S.users.find(u => u.username===username && u.password===password && u.isActive);
@@ -1588,7 +1589,12 @@ async function loadAllFromFirebase() {
   const lsMap = {transactions:LS_TXN,users:LS_USERS,settings:LS_SET,funds:LS_FUNDS,cats:LS_CATS,favs:LS_FAVS};
   const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
   await Promise.all(keys.map(async key => {
-    const val = await fbGet(basePath+key);
+    let val = await fbGet(basePath+key);
+    // fallback ไป pca/ ถ้า tenantId path ว่าง
+    if ((val===null||val===undefined||(Array.isArray(val)&&!val.length)) && S.tenantId) {
+      const fallback = await fbGet('pca/'+key);
+      if (fallback!==null && fallback!==undefined) val = fallback;
+    }
     if (key==='transactions') S.transactions = val||[];
     else if (key==='users')    S.users        = val||DEFAULT_USERS;
     else if (key==='settings') S.settings     = Object.assign({},DEFAULT_S,val||{});
@@ -1596,7 +1602,6 @@ async function loadAllFromFirebase() {
     else if (key==='cats')     S.cats         = (val&&val.length) ? val : [];
     else if (key==='favs')     S.favs         = val||[];
     else if (key==='certDocs') S.certDocs     = val||[];
-    // บันทึกลง localStorage เสมอ (cache สำหรับ offline)
     if (lsMap[key] && val!==null && val!==undefined) lsSet(lsMap[key], val);
   }));
   // ถ้าไม่มีหมวด ให้ใส่ default และบันทึกลง Firebase
