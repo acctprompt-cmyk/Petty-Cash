@@ -1438,6 +1438,21 @@ async function loadAllFromFirebase() {
     // บันทึกลง localStorage เสมอ (cache สำหรับ offline)
     if (lsMap[key] && val!==null && val!==undefined) lsSet(lsMap[key], val);
   }));
+  // ถ้าไม่มีหมวด ให้ใส่ default และบันทึกลง Firebase
+  if (!S.cats.length) {
+    S.cats = [
+      { id:'C-1', name:'ค่าเดินทาง',    icon:'🚗', color:'#3b82f6' },
+      { id:'C-2', name:'ค่าอาหาร',      icon:'🍱', color:'#f59e0b' },
+      { id:'C-3', name:'ค่าสาธารณูปโภค',icon:'💡', color:'#10b981' },
+      { id:'C-4', name:'ค่าสำนักงาน',   icon:'📎', color:'#8b5cf6' },
+      { id:'C-5', name:'ค่าซ่อมบำรุง',  icon:'🔧', color:'#ef4444' },
+      { id:'C-6', name:'ค่าอบรม/สัมมนา',icon:'📚', color:'#06b6d4' },
+      { id:'C-7', name:'ค่าบันเทิง',    icon:'🎉', color:'#ec4899' },
+      { id:'C-8', name:'อื่นๆ',         icon:'📋', color:'#64748b' },
+    ];
+    lsSet(LS_CATS, S.cats);
+    await writeJson('cats', S.cats).catch(()=>{});
+  }
 }
 
 // ── RENDER ──
