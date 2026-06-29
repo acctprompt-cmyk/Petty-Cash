@@ -418,7 +418,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
           <button class="ghost sm" onclick="manualRefresh()">🔄 รีเฟรช</button>
           <span id="fbBadge" style="font-size:12px;color:var(--success);padding:4px 10px;border-radius:8px;background:var(--success-bg);border:1px solid rgba(16,185,129,.2);display:none">🔥 Real-time</span>
           <span id="driveBadge" onclick="requestDriveToken()" style="font-size:13px;color:var(--text2);cursor:pointer;padding:6px 12px;border-radius:8px;background:var(--bg2);border:1px solid var(--border);display:none">☁️ เชื่อมต่อ Drive</span>
-          <button class="ghost sm" onclick="exportCSV()">📊 Export Excel</button>
+          <button class="ghost sm" onclick="showExportModal()">📊 Export Excel</button>
           <button class="ghost sm" onclick="exportMonthly()">📄 สรุปรายเดือน</button>
           <button class="ghost sm" onclick="logout()">ออก</button>
         </div>
@@ -2658,7 +2658,85 @@ async function saveSettings(){
 }
 
 // ── EXPORT CSV ──
-async function exportCSV(){
+// ── Export Modal ──
+function showExportModal() {
+  // สร้าง overlay
+  const ov = document.createElement('div');
+  ov.id = 'exportOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);z-index:5000;display:flex;align-items:center;justify-content:center;padding:20px';
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm   = String(now.getMonth()+1).padStart(2,'0');
+  const dd   = String(now.getDate()).padStart(2,'0');
+  ov.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px;max-width:400px;width:100%;box-shadow:var(--shadow-lg)">
+      <div style="font-size:17px;font-weight:700;margin-bottom:18px">📊 Export Excel</div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">ช่วงเวลา</label>
+        <div style="display:flex;gap:6px">
+          <button onclick="setExportPeriod('day')"   id="ep_day"   style="flex:1;padding:9px;border-radius:9px;font-size:13px;font-weight:600;border:1.5px solid var(--border);background:var(--primary);color:#fff;cursor:pointer">รายวัน</button>
+          <button onclick="setExportPeriod('month')" id="ep_month" style="flex:1;padding:9px;border-radius:9px;font-size:13px;font-weight:600;border:1.5px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer">รายเดือน</button>
+          <button onclick="setExportPeriod('year')"  id="ep_year"  style="flex:1;padding:9px;border-radius:9px;font-size:13px;font-weight:600;border:1.5px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer">รายปี</button>
+        </div>
+      </div>
+      <div id="ep_dateRow" style="margin-bottom:18px">
+        <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">วันที่</label>
+        <input id="ep_date" type="date" value="${yyyy}-${mm}-${dd}" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg2);color:var(--text);font-size:14px;font-family:inherit">
+      </div>
+      <div id="ep_monthRow" style="margin-bottom:18px;display:none">
+        <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">เดือน</label>
+        <input id="ep_month_val" type="month" value="${yyyy}-${mm}" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg2);color:var(--text);font-size:14px;font-family:inherit">
+      </div>
+      <div id="ep_yearRow" style="margin-bottom:18px;display:none">
+        <label style="font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">ปี</label>
+        <input id="ep_year_val" type="number" value="${yyyy}" min="2020" max="2099" style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg2);color:var(--text);font-size:14px;font-family:inherit">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button onclick="closeExportModal()" style="padding:10px 18px;border-radius:10px;background:var(--surface2);color:var(--text2);border:1.5px solid var(--border);font-size:14px;font-weight:600;cursor:pointer">ยกเลิก</button>
+        <button onclick="doExport()" style="padding:10px 18px;border-radius:10px;background:var(--primary);color:#fff;border:none;font-size:14px;font-weight:600;cursor:pointer">📥 Export</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  window._exportPeriod = 'day';
+}
+
+function setExportPeriod(p) {
+  window._exportPeriod = p;
+  ['day','month','year'].forEach(x => {
+    const btn = document.getElementById('ep_' + x);
+    if (btn) { btn.style.background = x===p ? 'var(--primary)' : 'var(--surface2)'; btn.style.color = x===p ? '#fff' : 'var(--text2)'; }
+  });
+  document.getElementById('ep_dateRow').style.display  = p==='day'   ? 'block' : 'none';
+  document.getElementById('ep_monthRow').style.display = p==='month' ? 'block' : 'none';
+  document.getElementById('ep_yearRow').style.display  = p==='year'  ? 'block' : 'none';
+}
+
+function closeExportModal() {
+  const ov = document.getElementById('exportOverlay');
+  if (ov) ov.remove();
+}
+
+async function doExport() {
+  const period = window._exportPeriod || 'day';
+  let filterFn, label;
+  if (period === 'day') {
+    const d = document.getElementById('ep_date')?.value || '';
+    filterFn = t => (t.date || '') === d;
+    label = d;
+  } else if (period === 'month') {
+    const m = document.getElementById('ep_month_val')?.value || '';
+    filterFn = t => (t.date || '').startsWith(m);
+    label = m;
+  } else {
+    const y = document.getElementById('ep_year_val')?.value || '';
+    filterFn = t => (t.date || '').startsWith(y);
+    label = y;
+  }
+  closeExportModal();
+  await exportCSV(filterFn, label);
+}
+
+async function exportCSV(filterFn, label) {
   if (!window.XLSX) {
     await new Promise((res, rej) => {
       const s = document.createElement('script');
@@ -2667,6 +2745,9 @@ async function exportCSV(){
       document.head.appendChild(s);
     });
   }
+  const txns = filterFn ? S.transactions.filter(filterFn) : S.transactions;
+  if (!txns.length) return showToast('ไม่มีรายการในช่วงเวลาที่เลือก', 'error');
+
   const headersTH = [
     'ผู้ขาย','เลขภาษีผู้ขาย','วันที่','เลขที่เอกสาร',
     'รายการสินค้า','รหัสบัญชี','โปรเจค','รายละเอียด','ชื่อบัญชี',
@@ -2676,13 +2757,13 @@ async function exportCSV(){
   ];
   const rows = [
     headersTH,
-    ...S.transactions.map(t => {
+    ...txns.map(t => {
       const dateStr = t.date || '';
-      const vendor  = (t.vendorName && t.vendorName.trim()) ? t.vendorName.trim() : (t.receipt || 'ใบรับรองแทนใบเสร็จรับเงิน');
+      const vendor  = (t.vendor && t.vendor.trim()) ? t.vendor.trim() : (t.receipt || 'ใบรับรองแทนใบเสร็จรับเงิน');
       const vatType = (t.vatAmount > 0) ? 'มี VAT 7%' : 'ไม่มี VAT';
       const whtPct  = (t.whtAmount > 0 && t.beforeVat > 0) ? ((t.whtAmount / t.beforeVat) * 100).toFixed(0) + '%' : '';
       return [
-        vendor, t.vendorTaxId || '', dateStr, t.documentNo || '',
+        vendor, t.vendorTax || '', dateStr, t.documentNo || '',
         t.description || '', '', '', '', '', '',
         t.beforeVat || t.amount || 0, vatType,
         t.beforeVat || 0, t.vatAmount || 0, t.amountIncludeVat || 0,
@@ -2700,9 +2781,9 @@ async function exportCSV(){
   ];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'รายการเบิกจ่าย');
-  const today = new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb, 'petty-cash-' + today + '.xlsx');
-  showToast('Export Excel เรียบร้อย ✓','success');
+  const fileName = 'petty-cash-' + (label || new Date().toISOString().slice(0,10)) + '.xlsx';
+  XLSX.writeFile(wb, fileName);
+  showToast('Export Excel เรียบร้อย ✓ (' + txns.length + ' รายการ)', 'success');
 }
 
 // ── CERTIFICATION ──
