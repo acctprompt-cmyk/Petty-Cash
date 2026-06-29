@@ -1248,8 +1248,12 @@ function loadAll() {
 async function writeJson(key, data) {
   const map = { transactions:LS_TXN, users:LS_USERS, settings:LS_SET, funds:LS_FUNDS, cats:LS_CATS, favs:LS_FAVS };
   lsSet(map[key], data);
-  // เขียนไป Firebase (real-time sync ทุกเครื่อง)
-  const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+  // เขียนไป Firebase — ใช้ tenantId เฉพาะเมื่อ tenant นั้นมีอยู่จริงใน Firebase
+  let basePath = 'pca/';
+  if (S.tenantId) {
+    const info = await fbGet('tenants/'+S.tenantId+'/info').catch(()=>null);
+    if (info) basePath = 'tenants/'+S.tenantId+'/pca/';
+  }
   await fbSet(basePath+key, data);
   // sync ไฟล์ JSON ไปยัง Drive เป็น backup
   syncJsonToDrive(key, data).catch(()=>{});
