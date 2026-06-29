@@ -3092,8 +3092,8 @@ function buildCertHTML({company,address,docNo,today,tableRows,total,bahtText,req
   body{font-family:'Sarabun',sans-serif;font-size:15px;color:#111;background:#fff}
   .page{width:780px;margin:0 auto;padding:28px 36px 36px;border:1px solid #ccc;position:relative}
   .hd-title{text-align:center;font-size:20px;font-weight:700;margin-bottom:6px}
-  .hd-company{text-align:center;font-size:19px;font-weight:700;margin-bottom:4px}
-  .hd-address{text-align:right;font-size:14px;color:#444;margin-bottom:10px;line-height:1.6}
+  .hd-company{text-align:center;font-size:14px;font-weight:700;margin-bottom:2px}
+  .hd-address{text-align:center;font-size:14px;color:#444;margin-bottom:4px;line-height:1.6}
   .dl{display:inline-block;vertical-align:bottom;margin:0 4px}
   .dl-lg{min-width:220px;border-bottom:1px solid #333} .dl-md{min-width:130px;border-bottom:1px solid #333} .dl-sm{min-width:80px;border-bottom:1px solid #333}
   table.items{width:100%;border-collapse:collapse;margin-bottom:0}
@@ -3119,9 +3119,12 @@ function buildCertHTML({company,address,docNo,today,tableRows,total,bahtText,req
   }
 </style></head><body>
 <div class="page">
-  ${address ? `<div class="hd-address">${address}<br><span style="font-size:14px">เลขที่ ${docNo} &nbsp;|&nbsp; วันที่ ${today}</span></div>` : `<div style="text-align:right;font-size:14px;margin-bottom:8px">เลขที่ ${docNo} &nbsp;|&nbsp; วันที่ ${today}</div>`}
   <div class="hd-title">ใบรับรองแทนใบเสร็จรับเงิน</div>
   <div class="hd-company">${company}</div>
+  ${address ? `<div class="hd-address">${address}</div>` : ''}
+  <div style="text-align:right;font-size:14px;margin-bottom:8px;line-height:1.8">
+    เลขที่ ${docNo}<br>วันที่ ${today}
+  </div>
   <table class="items">
     <thead>
       <tr>
