@@ -1075,6 +1075,10 @@ const DEFAULT_USERS = [
 
 // ── INIT ──
 window.addEventListener('load', () => {
+  // ล้าง tenantId เสมอ — ระบบนี้ใช้ pca/ path เดียว
+  localStorage.removeItem('pca_tenant_id');
+  localStorage.removeItem('pca_tenant_name');
+  S.tenantId = '';
   show('loginScreen');
   document.getElementById('loginUser').focus();
 });
@@ -1162,7 +1166,7 @@ async function submitRegister() {
   }
   // init Firebase
   if (!_db) { initFirebase(); await new Promise(r=>setTimeout(r,1200)); }
-  const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+  const basePath = 'pca/';
   // ดึง users ปัจจุบัน
   const fbUsers = await fbGet(basePath+'users') || [];
   // ตรวจ username ซ้ำ
@@ -1197,10 +1201,9 @@ async function login() {
   if (btn) { btn.disabled=true; btn.innerHTML='⏳ กำลังโหลด...'; }
   // init Firebase ก่อน
   if (!_db) { initFirebase(); await new Promise(r=>setTimeout(r,1200)); }
-  const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+  const basePath = 'pca/';
   // ดึง users จาก Firebase ก่อนเพื่อ login — fallback pca/users ถ้าไม่เจอ
-  let fbUsers = await fbGet(basePath+'users');
-  if (!fbUsers || !fbUsers.length) fbUsers = await fbGet('pca/users');
+  let fbUsers = await fbGet('pca/users');
   if (fbUsers) { S.users = fbUsers; lsSet(LS_USERS, fbUsers); }
   else { S.users = lsGet(LS_USERS, DEFAULT_USERS); }
   const matched = S.users.find(u => u.username===username && u.password===password && u.isActive);
@@ -1254,13 +1257,8 @@ function loadAll() {
 async function writeJson(key, data) {
   const map = { transactions:LS_TXN, users:LS_USERS, settings:LS_SET, funds:LS_FUNDS, cats:LS_CATS, favs:LS_FAVS };
   lsSet(map[key], data);
-  // เขียนไป Firebase — ใช้ tenantId เฉพาะเมื่อ tenant นั้นมีอยู่จริงใน Firebase
-  let basePath = 'pca/';
-  if (S.tenantId) {
-    const info = await fbGet('tenants/'+S.tenantId+'/info').catch(()=>null);
-    if (info) basePath = 'tenants/'+S.tenantId+'/pca/';
-  }
-  await fbSet(basePath+key, data);
+  // เขียนไป Firebase path เดียว pca/ เสมอ
+  await fbSet('pca/'+key, data);
   // sync ไฟล์ JSON ไปยัง Drive เป็น backup
   syncJsonToDrive(key, data).catch(()=>{});
 }
@@ -1521,7 +1519,7 @@ function startAutoRefresh() {
   if (_db) {
     // Firebase real-time listeners
     const keys = ['transactions','users','settings','funds','cats','favs','certDocs'];
-    const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+    const basePath = 'pca/';
     keys.forEach(key => {
       fbListen(basePath+key, (val) => {
         if (!S.user) return;
@@ -1567,7 +1565,7 @@ async function manualRefresh() {
   try {
     if (_db) {
       // ดึงจาก Firebase โดยไม่ override ถ้าได้ null กลับมา
-      const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+      const basePath = 'pca/';
       const keys = ['transactions','users','settings','funds','cats','favs','certDocs'];
       await Promise.all(keys.map(async key => {
         const val = await fbGet(basePath+key);
@@ -1597,14 +1595,9 @@ async function loadAllFromFirebase() {
   if (!_db) { loadAll(); return; }
   const keys = ['transactions','users','settings','funds','cats','favs','certDocs'];
   const lsMap = {transactions:LS_TXN,users:LS_USERS,settings:LS_SET,funds:LS_FUNDS,cats:LS_CATS,favs:LS_FAVS};
-  const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+  const basePath = 'pca/';
   await Promise.all(keys.map(async key => {
-    let val = await fbGet(basePath+key);
-    // fallback ไป pca/ ถ้า tenantId path ว่าง
-    if ((val===null||val===undefined||(Array.isArray(val)&&!val.length)) && S.tenantId) {
-      const fallback = await fbGet('pca/'+key);
-      if (fallback!==null && fallback!==undefined) val = fallback;
-    }
+    let val = await fbGet('pca/'+key);
     if (key==='transactions') S.transactions = val||[];
     else if (key==='users')    S.users        = val||DEFAULT_USERS;
     else if (key==='settings') S.settings     = Object.assign({},DEFAULT_S,val||{});
@@ -1716,7 +1709,17 @@ function switchTab(tab) {
   if(tab==='funds') { renderFundsTab(); checkFundAlerts(true); }
   if(tab==='settings') { setTimeout(initSettingsListeners,100); previewDocNo(); }
   if(tab==='cats')  { renderCatsTab(); }
-  if(tab==='users') { setTimeout(initSigPad, 80); }
+  if(tab==='users') {
+    setTimeout(initSigPad, 80);
+    // ผู้ขอเบิก: ล็อค role และแสดงแค่ข้อมูลตัวเอง
+    const isReq = S.user?.role === 'ผู้ขอเบิก';
+    const roleEl = document.getElementById('u_role');
+    if (roleEl) {
+      roleEl.disabled = isReq;
+      if (isReq) roleEl.value = 'ผู้ขอเบิก';
+    }
+    renderUsersTable();
+  }
   if(tab==='cert')  { initCertTab(); _preloadCertLibs(); }
   if(tab==='settings') {
     const role = S.user?.role;
@@ -2553,7 +2556,7 @@ async function clearAllData() {
   try {
     showToast('กำลังล้างข้อมูล...','');
     S.transactions = [];
-    const _bp = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+    const _bp = 'pca/';
     await fbDelete(_bp+'transactions');
     lsSet(LS_TXN, []);
     document.getElementById('clear_confirm').value = '';
@@ -2584,7 +2587,7 @@ async function doForgotPassword() {
   if (!verifyPwd) return showToast('กรุณาใส่รหัสผ่านผู้อนุมัติหรือแอดมิน','error');
   if (!newPwd || newPwd.length < 4) return showToast('รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร','error');
   try {
-    const _bp2 = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+    const _bp2 = 'pca/';
     const fbUsers = await fbGet(_bp2+'users') || lsGet(LS_USERS, []);
     // ยืนยันด้วยรหัสผู้อนุมัติ หรือแอดมิน (ยกเว้นถ้าคนที่จะรีเซ็ตคือแอดมินเอง ให้ใช้ผู้อนุมัติยืนยันเท่านั้น)
     const target   = fbUsers.find(u=>u.id===userId);
