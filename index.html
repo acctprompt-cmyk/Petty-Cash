@@ -1019,24 +1019,36 @@ window.addEventListener('load', () => {
 });
 
 // ── AUTH ──
-function login() {
+async function login() {
   const username = document.getElementById('loginUser').value.trim();
   const password = document.getElementById('loginPass').value.trim();
   if (!username || !password) return showToast('กรอกข้อมูลไม่ครบ','error');
+  const btn = document.getElementById('loginBtn');
+  if (btn) { btn.disabled=true; btn.innerHTML='⏳ กำลังโหลด...'; }
+  // โหลด localStorage ก่อน (เพื่อให้ login ได้แม้ offline)
   loadAll();
+  // init Firebase และดึงข้อมูล users จริงก่อน login
+  if (!_db) { initFirebase(); await new Promise(r=>setTimeout(r,1200)); }
+  const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+  const fbUsers = await fbGet(basePath+'users');
+  if (fbUsers) { S.users = fbUsers; lsSet(LS_USERS, fbUsers); }
   const matched = S.users.find(u => u.username===username && u.password===password && u.isActive);
-  if (!matched) return showToast('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง','error');
+  if (!matched) {
+    if (btn) { btn.disabled=false; btn.innerHTML='เข้าสู่ระบบ'; }
+    return showToast('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง','error');
+  }
   S.user = matched;
   window._alertShown = false;
   show('appView');
+  // โหลดข้อมูลทั้งหมดจาก Firebase ก่อน render
+  await loadAllFromFirebase();
   render();
   updateCatSelector();
   checkFundAlerts(false);
   switchTab('dashboard');
-  // เริ่ม Firebase (real-time) ก่อน แล้วค่อย Drive
-  initFirebase();
   setTimeout(initDriveAuth, 800);
   startAutoRefresh();
+  if (btn) { btn.disabled=false; btn.innerHTML='เข้าสู่ระบบ'; }
 }
 
 function logout() {
@@ -1072,7 +1084,8 @@ async function writeJson(key, data) {
   const map = { transactions:LS_TXN, users:LS_USERS, settings:LS_SET, funds:LS_FUNDS, cats:LS_CATS, favs:LS_FAVS };
   lsSet(map[key], data);
   // เขียนไป Firebase (real-time sync ทุกเครื่อง)
-  await fbSet('pca/'+key, data);
+  const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+  await fbSet(basePath+key, data);
   // sync ไฟล์ JSON ไปยัง Drive เป็น backup
   syncJsonToDrive(key, data).catch(()=>{});
 }
@@ -2314,7 +2327,8 @@ async function clearAllData() {
   try {
     showToast('กำลังล้างข้อมูล...','');
     S.transactions = [];
-    await fbDelete('pca/transactions');
+    const _bp = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+    await fbDelete(_bp+'transactions');
     lsSet(LS_TXN, []);
     document.getElementById('clear_confirm').value = '';
     showToast('✓ ล้างข้อมูลทั้งหมดเรียบร้อย','success');
@@ -2344,7 +2358,8 @@ async function doForgotPassword() {
   if (!verifyPwd) return showToast('กรุณาใส่รหัสผ่านผู้อนุมัติหรือแอดมิน','error');
   if (!newPwd || newPwd.length < 4) return showToast('รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร','error');
   try {
-    const fbUsers = await fbGet('pca/users') || lsGet(LS_USERS, []);
+    const _bp2 = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+    const fbUsers = await fbGet(_bp2+'users') || lsGet(LS_USERS, []);
     // ยืนยันด้วยรหัสผู้อนุมัติ หรือแอดมิน (ยกเว้นถ้าคนที่จะรีเซ็ตคือแอดมินเอง ให้ใช้ผู้อนุมัติยืนยันเท่านั้น)
     const target   = fbUsers.find(u=>u.id===userId);
     const verifier = fbUsers.find(u => {
@@ -2356,7 +2371,7 @@ async function doForgotPassword() {
     const idx = fbUsers.findIndex(u=>u.id===userId);
     if (idx<0) return showToast('ไม่พบผู้ใช้','error');
     fbUsers[idx].password = newPwd;
-    await fbSet('pca/users', fbUsers);
+    await fbSet(_bp2+'users', fbUsers);
     lsSet(LS_USERS, fbUsers);
     document.getElementById('forgotModal').style.display = 'none';
     showToast(`✓ รีเซ็ตรหัสผ่านของ "${fbUsers[idx].displayName||fbUsers[idx].username}" เรียบร้อย`,'success');
