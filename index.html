@@ -1551,13 +1551,34 @@ function _onStorageChange(e) {
 
 async function silentRefresh() { loadAll(); renderTxns(); }
 async function manualRefresh() {
-  if (_db) {
-    await loadAllFromFirebase();
+  const btn = document.querySelector('button[onclick="manualRefresh()"]');
+  if (btn) { btn.disabled=true; btn.innerHTML='⏳ กำลังโหลด...'; }
+  try {
+    if (_db) {
+      // ดึงจาก Firebase โดยไม่ override ถ้าได้ null กลับมา
+      const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+      const keys = ['transactions','users','settings','funds','cats','favs','certDocs'];
+      await Promise.all(keys.map(async key => {
+        const val = await fbGet(basePath+key);
+        if (val === null || val === undefined) return; // ไม่ override ถ้า Firebase ว่าง
+        if (key==='transactions') S.transactions = val;
+        else if (key==='users')    S.users        = val;
+        else if (key==='settings') S.settings     = Object.assign({},DEFAULT_S,val);
+        else if (key==='funds')    S.funds        = val;
+        else if (key==='cats')     S.cats         = val;
+        else if (key==='favs')     S.favs         = val;
+        else if (key==='certDocs') S.certDocs     = val;
+        const lsMap = {transactions:LS_TXN,users:LS_USERS,settings:LS_SET,funds:LS_FUNDS,cats:LS_CATS,favs:LS_FAVS};
+        if (lsMap[key]) lsSet(lsMap[key], val);
+      }));
+    }
     render();
-    showToast('รีเฟรชเรียบร้อย ✓', 'success');
-  } else {
-    loadAll(); render();
-    showToast('รีเฟรชเรียบร้อย ✓', 'success');
+    updateCatSelector();
+    showToast('รีเฟรชเรียบร้อย ✓','success');
+  } catch(e) {
+    showToast('รีเฟรชล้มเหลว: '+e.message,'error');
+  } finally {
+    if (btn) { btn.disabled=false; btn.innerHTML='🔄 รีเฟรช'; }
   }
 }
 
