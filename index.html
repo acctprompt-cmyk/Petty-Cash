@@ -687,17 +687,43 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
       </div>
       <input type="hidden" id="u_id">
       <input type="hidden" id="u_sig">
-      <label>ลายเซ็น (วาดในกรอบด้านล่าง)</label>
-      <div style="position:relative;display:inline-block">
-        <canvas id="sigCanvas" width="420" height="140"
-          style="border:2px solid var(--border2);border-radius:12px;background:#fff;cursor:crosshair;display:block;touch-action:none"></canvas>
-        <div style="position:absolute;bottom:8px;right:8px;font-size:11px;color:var(--muted)">วาดลายเซ็นที่นี่</div>
+      <label>ลายเซ็น</label>
+      <!-- Tab toggle -->
+      <div style="display:flex;gap:0;background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden;width:fit-content;margin-bottom:10px">
+        <button type="button" id="sigTabDraw" onclick="switchSigTab('draw')"
+          style="padding:7px 18px;font-size:13px;font-weight:600;border:none;cursor:pointer;background:var(--primary);color:#fff;border-radius:0">✏️ วาด</button>
+        <button type="button" id="sigTabUpload" onclick="switchSigTab('upload')"
+          style="padding:7px 18px;font-size:13px;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--text2);border-radius:0">📁 อัปโหลด</button>
       </div>
-      <div style="display:flex;gap:8px;margin-top:6px">
-        <button type="button" class="ghost sm" onclick="clearSigCanvas()">🗑️ ล้างลายเซ็น</button>
-        <span id="sigStatus" class="muted" style="font-size:12px;line-height:2.2"></span>
+      <!-- วาด -->
+      <div id="sigDrawPanel">
+        <div style="position:relative;display:inline-block">
+          <canvas id="sigCanvas" width="420" height="140"
+            style="border:2px solid var(--border2);border-radius:12px;background:#fff;cursor:crosshair;display:block;touch-action:none"></canvas>
+          <div style="position:absolute;bottom:8px;right:8px;font-size:11px;color:var(--muted)">วาดลายเซ็นที่นี่</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button type="button" class="ghost sm" onclick="clearSigCanvas()">🗑️ ล้างลายเซ็น</button>
+          <span id="sigStatus" class="muted" style="font-size:12px;line-height:2.2"></span>
+        </div>
       </div>
-      <div id="sigPreview" style="margin-top:4px;display:none">
+      <!-- อัปโหลด -->
+      <div id="sigUploadPanel" style="display:none">
+        <div style="border:2px dashed var(--border2);border-radius:12px;padding:20px;text-align:center;background:var(--bg2);cursor:pointer"
+          onclick="document.getElementById('sigFileInput').click()">
+          <div style="font-size:28px;margin-bottom:6px">🖼️</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text2)">คลิกเพื่อเลือกรูปลายเซ็น</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">รองรับ PNG, JPG (พื้นหลังใสดีที่สุด)</div>
+        </div>
+        <input type="file" id="sigFileInput" accept="image/*" style="display:none" onchange="loadSigFile(this)">
+        <div id="sigUploadPreview" style="margin-top:10px;display:none;text-align:center">
+          <img id="sigUploadImg" style="max-height:80px;max-width:280px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:6px">
+          <div style="margin-top:6px">
+            <button type="button" class="ghost sm" onclick="clearSigUpload()">🗑️ ลบรูป</button>
+          </div>
+        </div>
+      </div>
+      <div id="sigPreview" style="margin-top:8px;display:none">
         <div class="muted" style="font-size:12px;margin-bottom:4px">ลายเซ็นปัจจุบัน:</div>
         <img id="sigPreviewImg" style="height:60px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:4px">
       </div>
@@ -2519,11 +2545,12 @@ async function saveUser() {
   const role=document.getElementById('u_role').value;
   const password=document.getElementById('u_pass').value.trim();
   const isActive=document.getElementById('u_active').value==='true';
-  // capture signature from canvas
-  const canvas=document.getElementById('sigCanvas');
-  const sigHidden=document.getElementById('u_sig');
-  let signature = sigHidden.value || '';
-  if (canvas && !isSigCanvasEmpty(canvas)) {
+  // capture signature — จากอัปโหลดหรือวาด
+  const canvas    = document.getElementById('sigCanvas');
+  const sigHidden = document.getElementById('u_sig');
+  let signature   = sigHidden.value || ''; // อาจมาจากอัปโหลดแล้ว
+  // ถ้ายังว่างและมีการวาด ใช้จาก canvas
+  if (!signature && canvas && !isSigCanvasEmpty(canvas)) {
     signature = canvas.toDataURL('image/png');
   }
   if(!username||!displayName||!password) return showToast('กรอกข้อมูลไม่ครบ','error');
@@ -2541,6 +2568,8 @@ function clearUserForm(){
   const sh=document.getElementById('u_sig'); if(sh) sh.value='';
   clearSigCanvas();
   const prev=document.getElementById('sigPreview'); if(prev) prev.style.display='none';
+  clearSigUpload();
+  switchSigTab('draw');
   const ss=document.getElementById('sigStatus'); if(ss) ss.textContent='';
 }
 function deleteUser(id){
@@ -4643,6 +4672,54 @@ function initSigPad() {
   _sigCanvas.addEventListener('touchstart', start, {passive:false});
   _sigCanvas.addEventListener('touchmove',  draw,  {passive:false});
   _sigCanvas.addEventListener('touchend',   stop);
+}
+
+function switchSigTab(tab) {
+  const drawPanel   = document.getElementById('sigDrawPanel');
+  const uploadPanel = document.getElementById('sigUploadPanel');
+  const btnDraw     = document.getElementById('sigTabDraw');
+  const btnUpload   = document.getElementById('sigTabUpload');
+  if (tab === 'draw') {
+    drawPanel.style.display   = 'block';
+    uploadPanel.style.display = 'none';
+    btnDraw.style.background   = 'var(--primary)'; btnDraw.style.color   = '#fff';
+    btnUpload.style.background = 'transparent';    btnUpload.style.color = 'var(--text2)';
+  } else {
+    drawPanel.style.display   = 'none';
+    uploadPanel.style.display = 'block';
+    btnDraw.style.background   = 'transparent';   btnDraw.style.color   = 'var(--text2)';
+    btnUpload.style.background = 'var(--primary)'; btnUpload.style.color = '#fff';
+  }
+}
+
+function loadSigFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    // แสดง preview
+    const prev = document.getElementById('sigUploadPreview');
+    const img  = document.getElementById('sigUploadImg');
+    if (prev) prev.style.display = 'block';
+    if (img)  img.src = dataUrl;
+    // เก็บใน hidden field
+    const sh = document.getElementById('u_sig');
+    if (sh) sh.value = dataUrl;
+    showToast('โหลดลายเซ็นเรียบร้อย ✓', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearSigUpload() {
+  const prev  = document.getElementById('sigUploadPreview');
+  const img   = document.getElementById('sigUploadImg');
+  const input = document.getElementById('sigFileInput');
+  if (prev)  prev.style.display = 'none';
+  if (img)   img.src = '';
+  if (input) input.value = '';
+  const sh = document.getElementById('u_sig');
+  if (sh) sh.value = '';
 }
 
 function clearSigCanvas() {
