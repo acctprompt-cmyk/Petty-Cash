@@ -2223,7 +2223,7 @@ function buildCertForRecord(t) {
   const reqSig = reqUser?.signature||'';
   const appSig = appUser?.signature||'';
   const today  = formatThaiDate(t.date);
-  const ROWS   = 12;
+  const ROWS   = 8;
   const fmt    = n => new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0));
   const tableRows = Array.from({length:ROWS},(_,i)=>{
     if(i===0) return `<tr><td style="white-space:nowrap;border:1px solid #64748b;padding:4px 8px;width:145px">${today}</td><td style="border:1px solid #64748b;padding:4px 8px">${t.description||''}</td><td style="text-align:right;border:1px solid #64748b;padding:4px 8px;width:140px">${fmt(net)}</td><td style="border:1px solid #64748b;padding:4px 8px;width:130px">${t.note||''}</td></tr>`;
@@ -3003,7 +3003,7 @@ function buildCertHTMLForUpload(t, items, company, pos, reqSig, appSig) {
   const fmt  = n => new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0));
   const total = items.reduce((s,r)=>s+r.amt,0);
   const today = formatThaiDate(t.date);
-  const ROWS  = Math.max(12, items.length + 3);
+  const ROWS  = Math.max(8, items.length + 2);
   const tableRows = Array.from({length:ROWS},(_,i)=>{
     const item = items[i];
     if(item) return `<tr><td>${formatThaiDate(item.date)}</td><td>${item.desc||''}</td><td class="num">${item.amt?fmt(item.amt):''}</td><td>${item.note||''}</td></tr>`;
@@ -3023,7 +3023,7 @@ function dlCertWithItems(t, items, company, pos, reqSig, appSig) {
   const fmt  = n => new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0));
   const total = items.reduce((s,r)=>s+r.amt,0);
   const today = formatThaiDate(t.date);
-  const ROWS  = Math.max(12, items.length + 3);
+  const ROWS  = Math.max(8, items.length + 2);
 
   const tableRows = Array.from({length:ROWS},(_,i)=>{
     const item = items[i];
@@ -3117,9 +3117,9 @@ function buildCertHTML({company,address,docNo,today,tableRows,total,bahtText,req
   table.items td{border:1px solid #333;padding:4px 8px;font-size:15px;height:26px}
   td.num{text-align:right}
   .tfoot-sum td{border:1px solid #333;padding:5px 8px;font-size:15px;font-weight:700;text-align:center}
-  .remark{font-size:15px;line-height:2;margin-top:10px}
+  .remark{font-size:15px;line-height:1.8;margin-top:6px}
   .baht-text{text-align:center;font-size:15px;font-weight:600;margin-top:6px}
-  .sig-wrap{margin-top:16px;text-align:center}
+  .sig-wrap{margin-top:10px;text-align:center}
   .sig-line{font-size:15px;line-height:2.2}
   @media print{
     .no-print{display:none!important}
@@ -3159,21 +3159,21 @@ function buildCertHTML({company,address,docNo,today,tableRows,total,bahtText,req
       </tr>
     </tfoot>
   </table>
-  <div class="baht-text">รวมทั้งสิ้น (ตัวอักษร) ${bahtText}</div>
+  <div class="baht-text" style="margin-top:4px">รวมทั้งสิ้น (ตัวอักษร) ${bahtText}</div>
   <div class="remark">
     <div>ข้าพเจ้า <span class="dl dl-lg">${req||''}</span> (ผู้เบิกจ่าย) ตำแหน่ง<span class="dl dl-md">${pos||''}</span></div>
     <div>ขอรับรองว่า รายจ่ายข้างต้นนี้ไม่อาจเรียกเก็บใบเสร็จรับเงินจากผู้รับได้ และข้าพเจ้าได้จ่ายเงินไปในงานของทาง</div>
     <div><span class="dl dl-lg">${company}</span> โดยแท้ ตั้งแต่วันที่<span class="dl dl-md">${fromDate}</span>ถึงวันที่<span class="dl dl-md">${toDate}</span></div>
   </div>
   <div class="sig-wrap">
-    <div style="margin-top:24px">
+    <div style="margin-top:14px">
       <div style="min-height:72px;display:flex;align-items:center;justify-content:center;margin-bottom:4px">
         ${sigSlotReq||''}
       </div>
       <div class="sig-line">ลงชื่อ...........................................................................(ผู้เบิกจ่าย)</div>
       <div style="font-size:14px">(${req||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'})</div>
     </div>
-    <div style="margin-top:28px">
+    <div style="margin-top:18px">
       <div style="min-height:72px;display:flex;align-items:center;justify-content:center;margin-bottom:4px">
         ${sigSlotApp||''}
       </div>
