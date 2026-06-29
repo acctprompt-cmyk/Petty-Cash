@@ -62,8 +62,9 @@ body{font-family:'Noto Sans Thai',Tahoma,sans-serif;background:var(--bg);color:v
   th,td{padding:7px 8px}
   .card{padding:14px 12px}
   .section-title{font-size:clamp(16px,4vw,22px)}
-  input,select{font-size:clamp(15px,4vw,20px)!important}
-  button{font-size:clamp(13px,3.5vw,18px)!important}
+  input,select{font-size:clamp(18px,4vw,28px)!important}
+  button{font-size:clamp(15px,3.5vw,22px)!important}
+  label{font-size:clamp(16px,3.5vw,24px)!important}
   .filters input,.filters select{width:100%}
 }
 @media(max-width:600px){
@@ -75,8 +76,8 @@ body{font-family:'Noto Sans Thai',Tahoma,sans-serif;background:var(--bg);color:v
   .nav button{font-size:clamp(11px,3.8vw,15px);padding:6px 8px}
   .company-name{font-size:clamp(15px,4vw,20px)}
   table{display:block;overflow-x:auto;white-space:nowrap}
-  .header-right button,.header-right span{font-size:clamp(11px,3vw,14px)!important;padding:5px 8px}
-  .badge{font-size:clamp(11px,3vw,14px)}
+  .header-right button,.header-right span{font-size:clamp(14px,3vw,20px)!important;padding:5px 8px}
+  .badge{font-size:clamp(14px,3vw,20px)}
   h1,h2,.section-title{font-size:clamp(15px,4.5vw,20px)}
   .screen-title{font-size:clamp(22px,6vw,31px)}
   .center-box{padding:20px 14px}
@@ -101,8 +102,10 @@ body{font-family:'Noto Sans Thai',Tahoma,sans-serif;background:var(--bg);color:v
 
 /* ── FORM ── */
 label{display:block;font-weight:600;font-size:14px;color:var(--text2);margin:11px 0 5px;letter-spacing:.05em;text-transform:uppercase}
+#appView label{font-size:28px;letter-spacing:.02em}
 input,select,textarea{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;
   background:var(--bg2);color:var(--text);font-family:inherit;font-size:17px;transition:all .2s}
+#appView input,#appView select,#appView textarea{font-size:28px;padding:13px 16px}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
 textarea{min-height:78px;resize:vertical}
 input[type="file"]{padding:8px;cursor:pointer}
@@ -113,6 +116,7 @@ select option{background:var(--surface)}
 button{border:none;background:var(--primary);color:#fff;padding:11px 18px;border-radius:10px;
   font-weight:600;cursor:pointer;font-family:inherit;font-size:17px;transition:all .18s;
   display:inline-flex;align-items:center;gap:7px}
+#appView button:not(.nav button){font-size:22px;padding:12px 20px}
 button:hover{background:var(--primary-h);transform:translateY(-1px);box-shadow:0 4px 16px rgba(59,130,246,.35)}
 button:active{transform:translateY(0)}
 button.ghost{background:transparent;color:var(--text2);border:1.5px solid var(--border)}
@@ -121,7 +125,7 @@ button.sky{background:var(--accent)}
 button.sky:hover{background:#0891b2}
 button.danger{background:var(--danger)}
 button.danger:hover{background:#dc2626}
-button.sm{padding:6px 12px;font-size:14px;border-radius:8px}
+button.sm{padding:8px 14px;font-size:20px;border-radius:8px}
 button:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
 
 /* ── HEADER ── */
@@ -129,13 +133,13 @@ button:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
 .brand{display:flex;align-items:center;gap:12px}
 .brand-mark{width:40px;height:40px;background:linear-gradient(135deg,var(--primary),var(--accent));
   border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
-.company-name{font-size:20px;font-weight:700}
+.company-name{font-size:28px;font-weight:700}
 .header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 
 /* ── NAV ── */
 .nav{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px;background:var(--surface);
   border:1px solid var(--border);border-radius:14px;padding:5px}
-.nav button{background:transparent;color:var(--text2);border:none;padding:9px 16px;border-radius:10px;font-size:13.5px}
+.nav button{background:transparent;color:var(--text2);border:none;padding:10px 18px;border-radius:10px;font-size:20px}
 .nav button:hover{background:var(--surface2);color:var(--text);transform:none;box-shadow:none}
 .nav button.active{background:linear-gradient(135deg,var(--primary),var(--primary-h));color:#fff;
   box-shadow:0 2px 12px rgba(59,130,246,.4)}
@@ -145,12 +149,15 @@ button:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
 table{width:100%;border-collapse:collapse;min-width:720px}
 th{background:var(--bg2);color:var(--text2);font-size:13px;font-weight:700;letter-spacing:.06em;
   text-transform:uppercase;padding:10px 14px;text-align:left;border-bottom:2px solid var(--border)}
+#appView th{font-size:22px;padding:12px 16px}
 td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle}
+#appView td{font-size:22px;padding:13px 16px}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(59,130,246,.04)}
 
 /* ── BADGE ── */
 .badge{display:inline-flex;align-items:center;padding:4px 11px;border-radius:999px;font-size:14px;font-weight:700}
+#appView .badge{font-size:20px;padding:5px 13px}
 .badge.approved{background:var(--success-bg);color:var(--success);border:1px solid rgba(16,185,129,.25)}
 .badge.pending{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(245,158,11,.25)}
 .badge.rejected{background:var(--danger-bg);color:var(--danger);border:1px solid rgba(239,68,68,.25)}
@@ -159,8 +166,8 @@ tr:hover td{background:rgba(59,130,246,.04)}
 .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
 @media(max-width:860px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px}
-.stat-label{font-size:13px;color:var(--text2);font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px}
-.stat-val{font-size:26px;font-weight:700}
+.stat-label{font-size:20px;color:var(--text2);font-weight:700;letter-spacing:.03em;text-transform:uppercase;margin-bottom:8px}
+.stat-val{font-size:40px;font-weight:700}
 .stat-val.blue{color:var(--primary-g)} .stat-val.green{color:var(--success)}
 .stat-val.orange{color:var(--warn)} .stat-val.red{color:var(--danger)}
 
@@ -175,10 +182,11 @@ tr:hover td{background:rgba(59,130,246,.04)}
 
 /* ── MISC ── */
 .muted{font-size:14px;color:var(--text2)}
+#appView .muted{font-size:20px}
 .mono{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--primary-g)}
 .info-box{background:var(--info-bg);border:1px solid rgba(59,130,246,.2);border-radius:12px;
   padding:13px 16px;color:var(--primary-g);font-size:16px;margin-bottom:16px}
-.section-title{font-size:22px;font-weight:700;margin-bottom:18px}
+.section-title{font-size:36px;font-weight:700;margin-bottom:18px}
 .divider{border:none;border-top:1px solid var(--border);margin:18px 0}
 a{color:var(--primary-g);text-decoration:none} a:hover{text-decoration:underline}
 code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:2px 8px;
