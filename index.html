@@ -2656,29 +2656,45 @@ function genSummaryPDF(txns) {
     days[d].push(t);
   });
 
+  // เรียงตามวันที่ก่อนหลัง (asc) แล้วตาม createdAt
+  const sorted = [...txns].sort((a,b)=>{
+    const d = (a.date||'').localeCompare(b.date||'');
+    if (d!==0) return d;
+    return (a.createdAt||'').localeCompare(b.createdAt||'');
+  });
+
+  // คำนวณวงเงินตั้งต้น (รวม limit ของทุกวงเงินที่ active)
+  const initBalance = S.funds.filter(f=>f.active).reduce((s,f)=>s+Number(f.limit||0),0);
+
   // คำนวณ รับ/จ่าย/คงเหลือ สะสม
-  let balance = 0;
-  let totalIn = 0, totalOut = 0;
-  const rows = Object.entries(days).sort().map(([date, items]) =>
-    items.map(t=>{
-      const isFirst = t===items[0];
+  let balance = initBalance;
+  let totalIn = initBalance, totalOut = 0;
+  const initRow = `<tr>
+    <td style="text-align:center;border:1px solid #999;padding:4px 6px"></td>
+    <td style="border:1px solid #999;padding:4px 8px;font-weight:700;color:#1d6f42">ยอดยกมา (วงเงินตั้งต้น)</td>
+    <td style="text-align:right;border:1px solid #999;padding:4px 8px;color:#1d6f42;font-weight:700">${fmt(initBalance)}</td>
+    <td style="border:1px solid #999;padding:4px 8px"></td>
+    <td style="text-align:right;border:1px solid #999;padding:4px 8px;font-weight:600;color:#1d6f42">${fmt(initBalance)}</td>
+    <td style="border:1px solid #999;padding:4px 8px"></td>
+  </tr>`;
+
+  const rows = sorted.map(t=>{
       const isTopup = t.type==='replenish';
       const amt = Number(t.netPaid||t.amount||0);
       const amtIn  = isTopup ? amt : 0;
       const amtOut = isTopup ? 0 : amt;
       balance += amtIn - amtOut;
-      totalIn  += amtIn;
-      totalOut += amtOut;
+      if (!isTopup) totalOut += amtOut;
+      else totalIn += amtIn;
       return `<tr>
-        <td style="text-align:center;border:1px solid #999;padding:4px 6px;white-space:nowrap">${isFirst?formatThaiDate(date):''}</td>
-        <td style="border:1px solid #999;padding:4px 8px">${t.description||''}${isTopup?' <span style="color:#1d6f42;font-size:12px;font-weight:700">[เติมเงิน]</span>':''}</td>
+        <td style="text-align:center;border:1px solid #999;padding:4px 6px;white-space:nowrap">${formatThaiDate(t.date||'')}</td>
+        <td style="border:1px solid #999;padding:4px 8px">${t.description||''}</td>
         <td style="text-align:right;border:1px solid #999;padding:4px 8px;color:#1d6f42;font-weight:${amtIn?'700':'400'}">${amtIn?fmt(amtIn):''}</td>
         <td style="text-align:right;border:1px solid #999;padding:4px 8px;color:#c0392b;font-weight:${amtOut?'700':'400'}">${amtOut?fmt(amtOut):''}</td>
         <td style="text-align:right;border:1px solid #999;padding:4px 8px;font-weight:600;color:${balance>=0?'#1d6f42':'#c0392b'}">${fmt(balance)}</td>
         <td style="border:1px solid #999;padding:4px 8px">${t.note||''}</td>
       </tr>`;
-    }).join('')
-  ).join('');
+  }).join('');
 
   const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">
 <title>สรุปรายงาน ${period}</title>
@@ -2713,7 +2729,7 @@ function genSummaryPDF(txns) {
       <th style="width:110px">คงเหลือ (บาท)</th>
       <th style="width:100px">หมายเหตุ</th>
     </tr></thead>
-    <tbody>${rows}</tbody>
+    <tbody>${initRow}${rows}</tbody>
     <tfoot>
       <tr class="total-row">
         <td colspan="2" style="text-align:center;font-weight:700">รวมทั้งสิ้น</td>
