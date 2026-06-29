@@ -1178,12 +1178,15 @@ async function submitRegister() {
   lsSet(LS_USERS, fbUsers);
   document.getElementById('registerModal').style.display = 'none';
   showToast('✅ สร้างบัญชีเรียบร้อย! กำลังเข้าสู่ระบบ...','success');
-  // auto login แล้วไปหน้าจัดการผู้ใช้งาน
+  // auto login แล้วไปหน้าจัดการผู้ใช้งานพร้อมแสดงข้อมูลที่ลงทะเบียน
   await new Promise(r=>setTimeout(r,800));
   document.getElementById('loginUser').value = username;
   document.getElementById('loginPass').value = pass;
   await login();
-  setTimeout(()=>switchTab('users'), 500);
+  setTimeout(()=>{
+    // ไปหน้าบันทึกรายการปกติ
+    switchTab('request');
+  }, 500);
 }
 
 async function login() {
@@ -1678,7 +1681,7 @@ function applyPerms() {
   document.getElementById('tabTransactionsBtn').classList.remove('hidden');
   document.getElementById('tabFundsBtn').classList.toggle('hidden', isReq);
   // Users + Settings: เฉพาะ approver + admin
-  document.getElementById('tabUsersBtn').classList.toggle('hidden', isReq);
+  document.getElementById('tabUsersBtn').classList.remove('hidden'); // ผู้ขอเบิกเข้าได้แต่แก้ได้แค่ตัวเอง
   document.getElementById('tabSettingsBtn').classList.toggle('hidden', isReq);
   // Cats + Cert: ทุกคนเห็น
   document.getElementById('tabCatsBtn').classList.remove('hidden');
@@ -2495,6 +2498,9 @@ function approveWithOptions(id) {
 // ── USERS ──
 async function saveUser() {
   const id=document.getElementById('u_id').value;
+  // ผู้ขอเบิกแก้ได้แค่ข้อมูลตัวเอง
+  if (S.user?.role==='ผู้ขอเบิก' && id && id!==S.user.id)
+    return showToast('ไม่มีสิทธิ์แก้ไขข้อมูลผู้ใช้อื่น','error');
   const username=document.getElementById('u_user').value.trim();
   const displayName=document.getElementById('u_name').value.trim();
   const role=document.getElementById('u_role').value;
