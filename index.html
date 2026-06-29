@@ -4264,6 +4264,13 @@ async function saveCat() {
   updateCatSelector();
   renderCatsTab();
   clearCatForm();
+  // อัปเดต dropdown ในหน้าบันทึกรายการทุก row
+  document.querySelectorAll('.li-cat').forEach(sel => {
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— หมวด —</option>' +
+      S.cats.map(c=>`<option value="${c.name}" ${c.name===cur?'selected':''}>${c.icon||''} ${c.name}</option>`).join('');
+    if (cur) sel.value = cur;
+  });
   showToast('บันทึกหมวดเรียบร้อย','success');
 }
 
