@@ -2557,7 +2557,7 @@ async function saveUser() {
   if(S.users.find(u=>u.username===username&&u.id!==id)) return showToast('Username นี้มีในระบบแล้ว','error');
   if(id){ const i=S.users.findIndex(u=>u.id===id); if(i>=0) S.users[i]={...S.users[i],username,displayName,role,password,isActive,signature}; }
   else S.users.push({id:'U-'+uid(),username,displayName,role,password,isActive,signature});
-  await writeJson('users', S.users); renderUsersTable(); clearUserForm();
+  await writeJson('users', S.users); renderUsersTable(); clearUserForm(); clearSigCanvas(); clearSigUpload(); switchSigTab('draw');
   showToast('บันทึกผู้ใช้งานเรียบร้อย','success');
 }
 function editUser(raw){
@@ -4782,6 +4782,9 @@ function clearSigCanvas() {
     if (_sigCanvas) _sigCtx = _sigCanvas.getContext('2d');
   }
   if (_sigCtx && _sigCanvas) _sigCtx.clearRect(0,0,_sigCanvas.width,_sigCanvas.height);
+  // ล้าง hidden field และ preview ด้วย
+  const sh = document.getElementById('u_sig'); if(sh) sh.value='';
+  const prev = document.getElementById('sigPreview'); if(prev) prev.style.display='none';
 }
 
 function isSigCanvasEmpty(canvas) {
