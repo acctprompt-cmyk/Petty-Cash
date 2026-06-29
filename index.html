@@ -1177,10 +1177,13 @@ async function submitRegister() {
   await fbSet(basePath+'users', fbUsers);
   lsSet(LS_USERS, fbUsers);
   document.getElementById('registerModal').style.display = 'none';
-  // auto-fill login
+  showToast('✅ สร้างบัญชีเรียบร้อย! กำลังเข้าสู่ระบบ...','success');
+  // auto login แล้วไปหน้าจัดการผู้ใช้งาน
+  await new Promise(r=>setTimeout(r,800));
   document.getElementById('loginUser').value = username;
   document.getElementById('loginPass').value = pass;
-  showToast('✅ สร้างบัญชีเรียบร้อย! กดเข้าสู่ระบบได้เลย','success');
+  await login();
+  setTimeout(()=>switchTab('users'), 500);
 }
 
 async function login() {
