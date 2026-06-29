@@ -1524,7 +1524,7 @@ function startAutoRefresh() {
       fbListen(basePath+key, (val) => {
         if (!S.user) return;
         // Firebase อาจส่ง object แทน array — แปลงให้เป็น array เสมอ
-        const toArr = v => !v ? [] : Array.isArray(v) ? v : Object.values(v);
+        const toArr = v => !v ? [] : (Array.isArray(v) ? v : Object.values(v)).filter(Boolean);
         if (key==='transactions') S.transactions = toArr(val);
         else if (key==='users')   S.users        = toArr(val).length ? toArr(val) : DEFAULT_USERS;
         else if (key==='settings')S.settings     = Object.assign({},DEFAULT_S,val||{});
@@ -1597,7 +1597,7 @@ async function loadAllFromFirebase() {
   if (!_db) { loadAll(); return; }
   const keys = ['transactions','users','settings','funds','cats','favs','certDocs'];
   const lsMap = {transactions:LS_TXN,users:LS_USERS,settings:LS_SET,funds:LS_FUNDS,cats:LS_CATS,favs:LS_FAVS};
-  const toArr = v => !v ? [] : Array.isArray(v) ? v : Object.values(v);
+  const toArr = v => !v ? [] : (Array.isArray(v) ? v : Object.values(v)).filter(Boolean);
   await Promise.all(keys.map(async key => {
     let val = await fbGet('pca/'+key);
     if (key==='transactions') S.transactions = toArr(val);
@@ -4398,7 +4398,8 @@ async function saveCat() {
   const icon  = document.getElementById('ct_icon').value.trim();
   const color = document.getElementById('ct_color').value;
   if (!name) return showToast('กรอกชื่อหมวด','error');
-  if (S.cats.find(c=>c.name===name && c.id!==id)) return showToast('หมวดนี้มีอยู่แล้ว','error');
+  if (S.cats.filter(Boolean).find(c=>c && c.name===name && c.id!==id)) return showToast('หมวดนี้มีอยู่แล้ว','error');
+  S.cats = S.cats.filter(Boolean); // กรอง null/undefined ออก
   if (id) {
     const i = S.cats.findIndex(c=>c.id===id);
     if (i>=0) S.cats[i] = { ...S.cats[i], name, icon, color };
