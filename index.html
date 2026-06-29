@@ -1801,14 +1801,20 @@ function renderTxns() {
 
 function renderUsersTable() {
   const isReq = S.user?.role === 'ผู้ขอเบิก';
-  const list = isReq ? S.users.filter(u => u.id === S.user.id) : S.users;
+  // รวม current user เข้าไปด้วยถ้ายังไม่อยู่ใน S.users
+  let allUsers = [...S.users];
+  if (S.user && !allUsers.find(u => u.id === S.user.id)) {
+    allUsers = [S.user, ...allUsers];
+  }
+  const list = isReq ? allUsers.filter(u => u.id === S.user.id) : allUsers;
   document.getElementById('usersBody').innerHTML = list.map(u=>`
-    <tr>
-      <td>${u.username}</td><td>${u.displayName}</td><td>${u.role}</td>
+    <tr ${u.id===S.user?.id ? 'style="background:rgba(79,70,229,.06)"' : ''}>
+      <td>${u.username}${u.id===S.user?.id ? ' <span style="background:var(--info-bg);color:var(--info);font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px">ฉัน</span>' : ''}</td>
+      <td>${u.displayName}</td><td>${u.role}</td>
       <td>${u.isActive?'<span class="badge approved">ใช้งาน</span>':'<span class="badge rejected">ปิด</span>'}</td>
       <td style="display:flex;gap:6px">
         <button class="ghost sm" onclick='editUser(${JSON.stringify(JSON.stringify(u))})'>แก้ไข</button>
-        ${!isReq ? `<button class="danger sm" onclick="deleteUser('${u.id}')">ลบ</button>` : ''}
+        ${!isReq && u.id!==S.user?.id ? `<button class="danger sm" onclick="deleteUser('${u.id}')">ลบ</button>` : ''}
       </td>
     </tr>`).join('');
 }
