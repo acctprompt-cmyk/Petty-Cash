@@ -1333,8 +1333,9 @@ function startAutoRefresh() {
   if (_db) {
     // Firebase real-time listeners
     const keys = ['transactions','users','settings','funds','cats','favs','certDocs'];
+    const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
     keys.forEach(key => {
-      fbListen('pca/'+key, (val) => {
+      fbListen(basePath+key, (val) => {
         if (!S.user) return;
         if (key==='transactions') S.transactions = val||[];
         else if (key==='users')   S.users        = val||DEFAULT_USERS;
@@ -1373,23 +1374,31 @@ function _onStorageChange(e) {
 async function silentRefresh() { loadAll(); renderTxns(); }
 async function manualRefresh() {
   if (_db) {
-    // โหลดจาก Firebase
     await loadAllFromFirebase();
+    render();
+    showToast('รีเฟรชเรียบร้อย ✓', 'success');
+  } else {
+    loadAll(); render();
+    showToast('รีเฟรชเรียบร้อย ✓', 'success');
   }
-  loadAll(); render();
-  showToast('รีเฟรชเรียบร้อย ✓', 'success');
 }
 
 async function loadAllFromFirebase() {
   if (!_db) return;
   const keys = ['transactions','users','settings','funds','cats','favs','certDocs'];
   const lsMap = {transactions:LS_TXN,users:LS_USERS,settings:LS_SET,funds:LS_FUNDS,cats:LS_CATS,favs:LS_FAVS};
+  const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
   await Promise.all(keys.map(async key => {
-    const val = await fbGet('pca/'+key);
-    if (key==='certDocs') { if(val!==null) S.certDocs=val; }
-    else if (val !== null && lsMap[key]) lsSet(lsMap[key], val);
+    const val = await fbGet(basePath+key);
+    if (key==='transactions') S.transactions = val||[];
+    else if (key==='users')   { S.users = val||DEFAULT_USERS; }
+    else if (key==='settings') S.settings = Object.assign({},DEFAULT_S,val||{});
+    else if (key==='funds')   S.funds = val||[];
+    else if (key==='cats')    S.cats  = val||[];
+    else if (key==='favs')    S.favs  = val||[];
+    else if (key==='certDocs') { if(val!==null) S.certDocs=val; }
+    if (lsMap[key] && val!==null) lsSet(lsMap[key], val);
   }));
-  loadAll();
 }
 
 // ── RENDER ──
