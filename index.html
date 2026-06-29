@@ -345,17 +345,17 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);text-align:center">
       <div style="font-size:13px;color:var(--text2);margin-bottom:8px">ใช้งานครั้งแรก?</div>
       <button onclick="showRegisterModal()" class="ghost" style="width:100%;font-size:14px;color:var(--primary);border-color:var(--primary)">
-        👤 ลงทะเบียนผู้ขอเบิก (ครั้งแรก)
+        👤 ลงทะเบียนพนักงาน (ครั้งแรก)
       </button>
     </div>
   </div>
 </div>
 
-<!-- Modal ลงทะเบียนผู้ขอเบิก -->
+<!-- Modal ลงทะเบียนพนักงาน -->
 <div id="registerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;align-items:center;justify-content:center">
   <div style="background:var(--surface);border-radius:20px;padding:28px;width:100%;max-width:480px;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto">
-    <div style="font-size:18px;font-weight:700;margin-bottom:6px">👤 ลงทะเบียนผู้ขอเบิก</div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:18px">กรอกข้อมูลเพื่อสร้างบัญชีผู้ขอเบิกของคุณ</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:6px">👤 ลงทะเบียนพนักงาน</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:18px">กรอกข้อมูลเพื่อสร้างบัญชีพนักงานของคุณ</div>
     <label style="font-size:13px;font-weight:600">ชื่อ-นามสกุล *</label>
     <input id="reg_name" placeholder="ชื่อ-นามสกุล" style="width:100%;margin:4px 0 12px">
     <label style="font-size:13px;font-weight:600">Username *</label>
@@ -550,7 +550,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
 
       <!-- ── ข้อมูลหลัก ── -->
       <div class="row2" style="margin-bottom:4px">
-        <div><label>ชื่อผู้ขอเบิก <span style="color:var(--danger)">*</span></label><input id="f_req"></div>
+        <div><label>ชื่อพนักงาน <span style="color:var(--danger)">*</span></label><input id="f_req"></div>
         <div><label>วันที่ <span style="color:var(--danger)">*</span></label><input id="f_date" type="date"></div>
       </div>
 
@@ -665,7 +665,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
         <table>
           <thead><tr>
             <th>วันที่</th><th>เลขที่</th><th>หมวด</th><th>รายละเอียด</th>
-            <th>ผู้ขอเบิก</th><th>ยอดสุทธิ</th><th>สถานะ</th><th>ได้รับเอกสาร</th>
+            <th>พนักงาน</th><th>ยอดสุทธิ</th><th>สถานะ</th><th>ได้รับเอกสาร</th>
             <th>ไฟล์แนบ</th><th>เอกสาร</th><th>จัดการ</th>
           </tr></thead>
           <tbody id="txBody"></tbody>
@@ -679,7 +679,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
             <div class="row">
         <div><label>Username</label><input id="u_user"></div>
         <div><label>ชื่อแสดงผล</label><input id="u_name"></div>
-        <div><label>บทบาท</label><select id="u_role"><option>ผู้ขอเบิก</option><option>ผู้อนุมัติ</option><option>แอดมิน</option></select></div>
+        <div><label>บทบาท</label><select id="u_role"><option>พนักงาน</option><option>ผู้อนุมัติ</option><option>แอดมิน</option></select></div>
       </div>
       <div class="row2">
         <div><label>รหัสผ่าน</label><input id="u_pass" type="password"></div>
@@ -1094,7 +1094,7 @@ const DEFAULT_S = {
   docFormat:'PC-{YEAR}{MONTH}{DAY}-{SEQ}', docSeqStart:'1', docSeqPad:'4',
 };
 const DEFAULT_USERS = [
-  { id:'U-REQ-1', username:'requester', displayName:'ออม (ผู้ขอเบิก)', role:'ผู้ขอเบิก', password:'1234', isActive:true },
+  { id:'U-REQ-1', username:'requester', displayName:'ออม (พนักงาน)', role:'พนักงาน', password:'1234', isActive:true },
   { id:'U-APP-1', username:'approver',  displayName:'ผู้จัดการ', role:'ผู้อนุมัติ', password:'1234', isActive:true },
   { id:'U-ADM-1', username:'admin',     displayName:'แอดมิน', role:'แอดมิน', password:'1234', isActive:true },
 ];
@@ -1197,10 +1197,10 @@ async function submitRegister() {
   const fbUsers = await fbGet(basePath+'users') || [];
   // ตรวจ username ซ้ำ
   if (fbUsers.find(u=>u.username===username)) return showToast('Username นี้ถูกใช้แล้ว','error');
-  // สร้าง user ใหม่ (role: ผู้ขอเบิก)
+  // สร้าง user ใหม่ (role: พนักงาน)
   const newUser = {
     id: 'U-'+uid(), username, displayName: name,
-    role: 'ผู้ขอเบิก', password: pass, isActive: true, signature
+    role: 'พนักงาน', password: pass, isActive: true, signature
   };
   fbUsers.push(newUser);
   S.users = fbUsers;
@@ -1675,7 +1675,7 @@ function render() {
   // ถ้าผู้ขอเบิกอยู่ใน tab ที่ซ่อน ให้กลับไป dashboard
   const hiddenForReq = ['transactions','funds'];
   const curTab = [...document.querySelectorAll('[id$="Tab"]:not(.hidden)')].find(el=>!el.classList.contains('hidden') && el.id!=='loginScreen' && el.id!=='mainScreen');
-  if(S.user?.role==='ผู้ขอเบิก') switchTab('request');
+  if(S.user?.role==='พนักงาน') switchTab('request');
   updateFundSelector();
   updateCatSelector();
   updatePeriodUI();
@@ -1694,15 +1694,15 @@ function applyPerms() {
   const role   = S.user?.role || 'ผู้ขอเบิก';
   const isApp  = role === 'ผู้อนุมัติ';
   const isAdm  = role === 'แอดมิน';
-  const isReq  = role === 'ผู้ขอเบิก';
+  const isReq  = role === 'พนักงาน';
 
   // ── TAB visibility ──
-  // ผู้ขอเบิก: ซ่อน รายการทั้งหมด + วงเงิน
-  // ผู้ขอเบิกดูรายการย้อนหลังของตัวเองได้
+  // พนักงาน: ซ่อน รายการทั้งหมด + วงเงิน
+  // พนักงานดูรายการย้อนหลังของตัวเองได้
   document.getElementById('tabTransactionsBtn').classList.remove('hidden');
   document.getElementById('tabFundsBtn').classList.toggle('hidden', isReq);
   // Users + Settings: เฉพาะ approver + admin
-  document.getElementById('tabUsersBtn').classList.remove('hidden'); // ผู้ขอเบิกเข้าได้แต่แก้ได้แค่ตัวเอง
+  document.getElementById('tabUsersBtn').classList.remove('hidden'); // พนักงานเข้าได้แต่แก้ได้แค่ตัวเอง
   document.getElementById('tabSettingsBtn').classList.toggle('hidden', isReq);
   // Cats + Cert: ทุกคนเห็น
   document.getElementById('tabCatsBtn').classList.remove('hidden');
@@ -1739,12 +1739,12 @@ function switchTab(tab) {
   if(tab==='cats')  { renderCatsTab(); }
   if(tab==='users') {
     setTimeout(initSigPad, 80);
-    // ผู้ขอเบิก: ล็อค role และแสดงแค่ข้อมูลตัวเอง
-    const isReq = S.user?.role === 'ผู้ขอเบิก';
+    // พนักงาน: ล็อค role และแสดงแค่ข้อมูลตัวเอง
+    const isReq = S.user?.role === 'พนักงาน';
     const roleEl = document.getElementById('u_role');
     if (roleEl) {
       roleEl.disabled = isReq;
-      if (isReq) roleEl.value = 'ผู้ขอเบิก';
+      if (isReq) roleEl.value = 'พนักงาน';
     }
     renderUsersTable();
   }
@@ -1828,7 +1828,7 @@ function renderTxns() {
 }
 
 function renderUsersTable() {
-  const isReq = S.user?.role === 'ผู้ขอเบิก';
+  const isReq = S.user?.role === 'พนักงาน';
   // รวม current user เข้าไปด้วยถ้ายังไม่อยู่ใน S.users
   let allUsers = [...S.users];
   if (S.user && !allUsers.find(u => u.id === S.user.id)) {
@@ -2109,7 +2109,7 @@ async function saveTxMulti() {
   const dateVal = document.getElementById('f_date').value;
   const items   = getLineItems();
 
-  if (!req)           { toast.remove(); showToast('กรุณากรอกชื่อผู้ขอเบิก','error'); btn.disabled=false; return; }
+  if (!req)           { toast.remove(); showToast('กรุณากรอกชื่อพนักงาน','error'); btn.disabled=false; return; }
   if (!dateVal)       { toast.remove(); showToast('กรุณาเลือกวันที่','error'); btn.disabled=false; return; }
   if (!items.length)  { toast.remove(); showToast('กรุณาเพิ่มรายการอย่างน้อย 1 รายการ','error'); btn.disabled=false; return; }
   const emptyDesc = items.find(r=>!r.desc);
@@ -2199,7 +2199,7 @@ async function saveTx(addAnother=false) {
   const desc = document.getElementById('f_desc').value.trim();
   const req  = document.getElementById('f_req').value.trim();
   const dateVal = document.getElementById('f_date').value;
-  if (!req)   return showToast('กรุณากรอกชื่อผู้ขอเบิก','error');
+  if (!req)   return showToast('กรุณากรอกชื่อพนักงาน','error');
   if (!dateVal) return showToast('กรุณาเลือกวันที่','error');
   if (!desc)  return showToast('กรุณากรอกรายละเอียด (บังคับกรอก)','error');
 
@@ -2537,8 +2537,8 @@ function approveWithOptions(id) {
 // ── USERS ──
 async function saveUser() {
   const id=document.getElementById('u_id').value;
-  // ผู้ขอเบิกแก้ได้แค่ข้อมูลตัวเอง
-  if (S.user?.role==='ผู้ขอเบิก' && id && id!==S.user.id)
+  // พนักงานแก้ได้แค่ข้อมูลตัวเอง
+  if (S.user?.role==='พนักงาน' && id && id!==S.user.id)
     return showToast('ไม่มีสิทธิ์แก้ไขข้อมูลผู้ใช้อื่น','error');
   const username=document.getElementById('u_user').value.trim();
   const displayName=document.getElementById('u_name').value.trim();
@@ -2560,10 +2560,10 @@ async function saveUser() {
   await writeJson('users', S.users); renderUsersTable(); clearUserForm();
   showToast('บันทึกผู้ใช้งานเรียบร้อย','success');
 }
-function editUser(raw){ const u=JSON.parse(raw); document.getElementById('u_id').value=u.id||''; document.getElementById('u_user').value=u.username||''; document.getElementById('u_name').value=u.displayName||''; document.getElementById('u_role').value=u.role||'ผู้ขอเบิก'; document.getElementById('u_pass').value=u.password||''; document.getElementById('u_active').value=String(u.isActive); }
+function editUser(raw){ const u=JSON.parse(raw); document.getElementById('u_id').value=u.id||''; document.getElementById('u_user').value=u.username||''; document.getElementById('u_name').value=u.displayName||''; document.getElementById('u_role').value=u.role||'พนักงาน'; document.getElementById('u_pass').value=u.password||''; document.getElementById('u_active').value=String(u.isActive); }
 function clearUserForm(){
   ['u_id','u_user','u_name','u_pass'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('u_role').value='ผู้ขอเบิก';
+  document.getElementById('u_role').value='พนักงาน';
   document.getElementById('u_active').value='true';
   const sh=document.getElementById('u_sig'); if(sh) sh.value='';
   clearSigCanvas();
@@ -3550,7 +3550,9 @@ function dlCert(raw){
     :`<div style="text-align:center"><img id="img_${id}" src="" style="max-height:72px;max-width:220px;object-fit:contain;display:none;margin:0 auto 4px"><label for="file_${id}" style="display:inline-block;padding:5px 14px;background:#f0f4ff;border:1.5px dashed #93c5fd;border-radius:6px;cursor:pointer;font-size:12px;color:#2563eb;font-family:inherit">📁 เลือกไฟล์ลายเซ็น</label><input type="file" id="file_${id}" accept="image/*" style="display:none" onchange="loadSig('${id}',this)"><div style="font-size:11px;color:#999;margin-top:3px">JPG, PNG, GIF</div></div>`
   }</div>`;
   const items = [{ date:t.date, desc:t.description||'-', amt:net, note:t.note||'' }];
-  dlCertWithItems(t, items, s.companyName||'บริษัท', '', reqSig, appSig);
+  // ตำแหน่งจาก role ของผู้ขอเบิก
+  const reqPos = reqUser?.role || 'พนักงาน';
+  dlCertWithItems(t, items, s.companyName||'บริษัท', reqPos, reqSig, appSig);
 }
 // ══════════════════════════════════════════════════════
 //  DASHBOARD
@@ -4392,7 +4394,7 @@ function renderCatsTab() {
 
   if (cardsEl) {
     cardsEl.innerHTML = rows.map(({c,txns,total})=>`
-      <div onclick="${S.user?.role!=='ผู้ขอเบิก'?`editCat('${c.id}')`:''}" style="cursor:${S.user?.role!=='ผู้ขอเบิก'?'pointer':'default'};
+      <div onclick="${S.user?.role!=='พนักงาน'?`editCat('${c.id}')`:''}" style="cursor:${S.user?.role!=='พนักงาน'?'pointer':'default'};
         background:var(--surface);border:1.5px solid var(--border);border-radius:14px;
         padding:16px;cursor:pointer;transition:all .15s;text-align:center;
         border-top:3px solid ${c.color||'var(--primary)'}"
@@ -4414,7 +4416,7 @@ function renderCatsTab() {
         <td style="font-weight:700;color:var(--primary-g)">${thb(total)}</td>
         <td>${txns.length}</td>
         <td style="display:flex;gap:6px">
-          ${(S.user?.role!=='ผู้ขอเบิก')?`<button class="ghost sm" onclick="editCat('${c.id}')">แก้ไข</button><button class="danger sm" onclick="deleteCat('${c.id}')">ลบ</button>`:''}
+          ${(S.user?.role!=='พนักงาน')?`<button class="ghost sm" onclick="editCat('${c.id}')">แก้ไข</button><button class="danger sm" onclick="deleteCat('${c.id}')">ลบ</button>`:''}
         </td>
       </tr>`).join('') ||
       '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีหมวด</td></tr>';
