@@ -1043,7 +1043,7 @@ async function login() {
   // โหลดข้อมูลทั้งหมดจาก Firebase ก่อน render
   await loadAllFromFirebase();
   render();
-  updateCatSelector();
+  updateCatSelector(); // เรียกอีกครั้งหลัง Firebase โหลดเสร็จ
   checkFundAlerts(false);
   switchTab('dashboard');
   setTimeout(initDriveAuth, 800);
@@ -1360,6 +1360,7 @@ function startAutoRefresh() {
         // save to localStorage as cache
         const lsMap = {transactions:LS_TXN,users:LS_USERS,settings:LS_SET,funds:LS_FUNDS,cats:LS_CATS,favs:LS_FAVS};
         if (lsMap[key]) lsSet(lsMap[key], val||[]);
+        if (key==='cats') updateCatSelector();
         render();
       });
     });
@@ -1406,8 +1407,8 @@ async function loadAllFromFirebase() {
     if (key==='transactions') S.transactions = val||[];
     else if (key==='users')   { S.users = val||DEFAULT_USERS; }
     else if (key==='settings') S.settings = Object.assign({},DEFAULT_S,val||{});
-    else if (key==='funds')   S.funds = val||[];
-    else if (key==='cats')    S.cats  = val||[];
+    else if (key==='funds')   S.funds = val||(S.funds.length ? S.funds : []);
+    else if (key==='cats')    S.cats  = (val && val.length) ? val : (S.cats.length ? S.cats : lsGet(LS_CATS,[]));
     else if (key==='favs')    S.favs  = val||[];
     else if (key==='certDocs') { if(val!==null) S.certDocs=val; }
     if (lsMap[key] && val!==null) lsSet(lsMap[key], val);
