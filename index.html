@@ -20,7 +20,7 @@
   --glow:0 0 20px rgba(79,70,229,.2);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Noto Sans Thai',Tahoma,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:18px;line-height:1.6}
+body{font-family:'Noto Sans Thai',Tahoma,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:clamp(16px,2.2vw,27px);line-height:1.6}
 .hidden{display:none!important}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--bg2)}
@@ -47,7 +47,44 @@ body{font-family:'Noto Sans Thai',Tahoma,sans-serif;background:var(--bg);color:v
 .card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px;box-shadow:var(--shadow);margin-bottom:14px}
 .row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .row2{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
-@media(max-width:860px){.row,.row2{grid-template-columns:1fr}}
+/* ── Responsive — รองรับทุกอุปกรณ์ ── */
+@media(max-width:1200px){
+  .wrap{padding:12px 10px}
+}
+@media(max-width:860px){
+  .row,.row2{grid-template-columns:1fr}
+  .app-header{flex-direction:column;align-items:flex-start;gap:10px}
+  .header-right{flex-wrap:wrap;gap:6px}
+  .nav{flex-wrap:wrap;gap:4px;padding:6px}
+  .nav button{font-size:clamp(12px,3.5vw,16px);padding:7px 10px}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+  table{font-size:clamp(12px,3vw,15px)}
+  th,td{padding:7px 8px}
+  .card{padding:14px 12px}
+  .section-title{font-size:clamp(16px,4vw,22px)}
+  input,select{font-size:clamp(15px,4vw,20px)!important}
+  button{font-size:clamp(13px,3.5vw,18px)!important}
+  .filters input,.filters select{width:100%}
+}
+@media(max-width:600px){
+  .row,.row2{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+  .wrap{padding:8px 6px}
+  .card{padding:12px 10px;border-radius:14px}
+  .nav{gap:3px;padding:4px}
+  .nav button{font-size:clamp(11px,3.8vw,15px);padding:6px 8px}
+  .company-name{font-size:clamp(15px,4vw,20px)}
+  table{display:block;overflow-x:auto;white-space:nowrap}
+  .header-right button,.header-right span{font-size:clamp(11px,3vw,14px)!important;padding:5px 8px}
+  .badge{font-size:clamp(11px,3vw,14px)}
+  h1,h2,.section-title{font-size:clamp(15px,4.5vw,20px)}
+  .screen-title{font-size:clamp(22px,6vw,31px)}
+  .center-box{padding:20px 14px}
+}
+@media(max-width:400px){
+  .stat-grid{grid-template-columns:1fr}
+  .nav button{font-size:11px;padding:5px 7px}
+}
 
 /* ── FULL SCREEN ── */
 .full-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
@@ -469,22 +506,8 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
 
     <!-- ── Request ── -->
     <div id="requestTab" class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+      <div style="margin-bottom:18px">
         <div class="section-title" style="margin:0">📝 บันทึกรายการ</div>
-        <button type="button" class="ghost sm" onclick="toggleFavPanel()" style="gap:6px">⭐ รายการโปรด</button>
-      </div>
-
-      <!-- Favourites panel -->
-      <div id="favPanel" class="hidden" style="background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:16px;margin-bottom:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div style="font-weight:700;font-size:14px">⭐ รายการโปรด</div>
-          <div style="display:flex;gap:8px">
-            <button class="ghost sm" onclick="saveFav()">+ บันทึกรายการนี้เป็นโปรด</button>
-            <button class="ghost sm" onclick="toggleFavPanel()">✕</button>
-          </div>
-        </div>
-        <div id="favList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px"></div>
-        <div id="favEmpty" class="muted" style="font-size:13px">ยังไม่มีรายการโปรด</div>
       </div>
 
       <!-- ── ข้อมูลหลัก ── -->
