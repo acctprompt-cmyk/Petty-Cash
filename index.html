@@ -1049,13 +1049,13 @@ async function login() {
   if (!username || !password) return showToast('กรอกข้อมูลไม่ครบ','error');
   const btn = document.getElementById('loginBtn');
   if (btn) { btn.disabled=true; btn.innerHTML='⏳ กำลังโหลด...'; }
-  // โหลด localStorage ก่อน (เพื่อให้ login ได้แม้ offline)
-  loadAll();
-  // init Firebase และดึงข้อมูล users จริงก่อน login
+  // init Firebase ก่อน
   if (!_db) { initFirebase(); await new Promise(r=>setTimeout(r,1200)); }
   const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
+  // ดึง users จาก Firebase ก่อนเพื่อ login
   const fbUsers = await fbGet(basePath+'users');
   if (fbUsers) { S.users = fbUsers; lsSet(LS_USERS, fbUsers); }
+  else { S.users = lsGet(LS_USERS, DEFAULT_USERS); }
   const matched = S.users.find(u => u.username===username && u.password===password && u.isActive);
   if (!matched) {
     if (btn) { btn.disabled=false; btn.innerHTML='เข้าสู่ระบบ'; }
@@ -1064,10 +1064,10 @@ async function login() {
   S.user = matched;
   window._alertShown = false;
   show('appView');
-  // โหลดข้อมูลทั้งหมดจาก Firebase ก่อน render
+  // โหลดข้อมูลทั้งหมดจาก Firebase (เป็น source of truth เสมอ)
   await loadAllFromFirebase();
   render();
-  updateCatSelector(); // เรียกอีกครั้งหลัง Firebase โหลดเสร็จ
+  updateCatSelector();
   checkFundAlerts(false);
   switchTab('dashboard');
   setTimeout(initDriveAuth, 800);
@@ -1422,20 +1422,21 @@ async function manualRefresh() {
 }
 
 async function loadAllFromFirebase() {
-  if (!_db) return;
+  if (!_db) { loadAll(); return; }
   const keys = ['transactions','users','settings','funds','cats','favs','certDocs'];
   const lsMap = {transactions:LS_TXN,users:LS_USERS,settings:LS_SET,funds:LS_FUNDS,cats:LS_CATS,favs:LS_FAVS};
   const basePath = S.tenantId ? 'tenants/'+S.tenantId+'/pca/' : 'pca/';
   await Promise.all(keys.map(async key => {
     const val = await fbGet(basePath+key);
     if (key==='transactions') S.transactions = val||[];
-    else if (key==='users')   { S.users = val||DEFAULT_USERS; }
-    else if (key==='settings') S.settings = Object.assign({},DEFAULT_S,val||{});
-    else if (key==='funds')   S.funds = val||(S.funds.length ? S.funds : []);
-    else if (key==='cats')    S.cats  = (val && val.length) ? val : (S.cats.length ? S.cats : lsGet(LS_CATS,[]));
-    else if (key==='favs')    S.favs  = val||[];
-    else if (key==='certDocs') { if(val!==null) S.certDocs=val; }
-    if (lsMap[key] && val!==null) lsSet(lsMap[key], val);
+    else if (key==='users')    S.users        = val||DEFAULT_USERS;
+    else if (key==='settings') S.settings     = Object.assign({},DEFAULT_S,val||{});
+    else if (key==='funds')    S.funds        = (val&&val.length) ? val : [];
+    else if (key==='cats')     S.cats         = (val&&val.length) ? val : [];
+    else if (key==='favs')     S.favs         = val||[];
+    else if (key==='certDocs') S.certDocs     = val||[];
+    // บันทึกลง localStorage เสมอ (cache สำหรับ offline)
+    if (lsMap[key] && val!==null && val!==undefined) lsSet(lsMap[key], val);
   }));
 }
 
@@ -3103,7 +3104,7 @@ function buildCertHTML({company,address,docNo,today,tableRows,total,bahtText,req
   }
 </style></head><body>
 <div class="page">
-  ${address ? `<div class="hd-address">${address}</div>` : ''}
+  ${address ? `<div class="hd-address">${address}<br><span style="font-size:14px">เลขที่ ${docNo} &nbsp;|&nbsp; วันที่ ${today}</span></div>` : `<div style="text-align:right;font-size:14px;margin-bottom:8px">เลขที่ ${docNo} &nbsp;|&nbsp; วันที่ ${today}</div>`}
   <div class="hd-title">ใบรับรองแทนใบเสร็จรับเงิน</div>
   <div class="hd-company">${company}</div>
   <table class="items">
