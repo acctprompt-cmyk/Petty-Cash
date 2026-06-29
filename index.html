@@ -1800,13 +1800,15 @@ function renderTxns() {
 }
 
 function renderUsersTable() {
-  document.getElementById('usersBody').innerHTML = S.users.map(u=>`
+  const isReq = S.user?.role === 'ผู้ขอเบิก';
+  const list = isReq ? S.users.filter(u => u.id === S.user.id) : S.users;
+  document.getElementById('usersBody').innerHTML = list.map(u=>`
     <tr>
       <td>${u.username}</td><td>${u.displayName}</td><td>${u.role}</td>
       <td>${u.isActive?'<span class="badge approved">ใช้งาน</span>':'<span class="badge rejected">ปิด</span>'}</td>
       <td style="display:flex;gap:6px">
         <button class="ghost sm" onclick='editUser(${JSON.stringify(JSON.stringify(u))})'>แก้ไข</button>
-        <button class="danger sm" onclick="deleteUser('${u.id}')">ลบ</button>
+        ${!isReq ? `<button class="danger sm" onclick="deleteUser('${u.id}')">ลบ</button>` : ''}
       </td>
     </tr>`).join('');
 }
@@ -2600,7 +2602,7 @@ async function doForgotPassword() {
     const idx = fbUsers.findIndex(u=>u.id===userId);
     if (idx<0) return showToast('ไม่พบผู้ใช้','error');
     fbUsers[idx].password = newPwd;
-    await fbSet(_bp2+'users', fbUsers);
+    await fbSet('pca/users', fbUsers);
     lsSet(LS_USERS, fbUsers);
     document.getElementById('forgotModal').style.display = 'none';
     showToast(`✓ รีเซ็ตรหัสผ่านของ "${fbUsers[idx].displayName||fbUsers[idx].username}" เรียบร้อย`,'success');
