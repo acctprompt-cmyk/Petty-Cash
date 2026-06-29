@@ -713,9 +713,9 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
           onclick="document.getElementById('sigFileInput').click()">
           <div style="font-size:28px;margin-bottom:6px">🖼️</div>
           <div style="font-size:13px;font-weight:600;color:var(--text2)">คลิกเพื่อเลือกรูปลายเซ็น</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:4px">รองรับ PNG, JPG (พื้นหลังใสดีที่สุด)</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">รองรับ PNG, JPG, PDF</div>
         </div>
-        <input type="file" id="sigFileInput" accept="image/*" style="display:none" onchange="loadSigFile(this)">
+        <input type="file" id="sigFileInput" accept="image/*,application/pdf" style="display:none" onchange="loadSigFile(this)">
         <div id="sigUploadPreview" style="margin-top:10px;display:none;text-align:center">
           <img id="sigUploadImg" style="max-height:80px;max-width:280px;border:1px solid var(--border);border-radius:8px;background:#fff;padding:6px">
           <div style="margin-top:6px">
@@ -4695,18 +4695,27 @@ function switchSigTab(tab) {
 function loadSigFile(input) {
   const file = input.files[0];
   if (!file) return;
+  const isPdf = file.type === 'application/pdf';
   const reader = new FileReader();
   reader.onload = e => {
     const dataUrl = e.target.result;
-    // แสดง preview
     const prev = document.getElementById('sigUploadPreview');
     const img  = document.getElementById('sigUploadImg');
     if (prev) prev.style.display = 'block';
-    if (img)  img.src = dataUrl;
-    // เก็บใน hidden field
+    if (img) {
+      if (isPdf) {
+        // PDF แสดง icon แทน
+        img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"><rect width="80" height="80" rx="10" fill="%23fee2e2"/><text x="40" y="32" text-anchor="middle" font-size="28">📄</text><text x="40" y="54" text-anchor="middle" font-size="12" fill="%23dc2626" font-family="sans-serif">PDF</text><text x="40" y="68" text-anchor="middle" font-size="9" fill="%23666" font-family="sans-serif">' + file.name.slice(0,16) + '</text></svg>';
+        img.style.background = 'transparent';
+      } else {
+        img.src = dataUrl;
+        img.style.background = '#fff';
+      }
+    }
+    // เก็บใน hidden field (ทั้ง image และ PDF เป็น base64)
     const sh = document.getElementById('u_sig');
     if (sh) sh.value = dataUrl;
-    showToast('โหลดลายเซ็นเรียบร้อย ✓', 'success');
+    showToast('โหลด' + (isPdf ? ' PDF ' : 'รูป') + 'ลายเซ็นเรียบร้อย ✓', 'success');
   };
   reader.readAsDataURL(file);
 }
