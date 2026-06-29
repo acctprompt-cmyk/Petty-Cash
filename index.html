@@ -2565,11 +2565,8 @@ function clearUserForm(){
   ['u_id','u_user','u_name','u_pass'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('u_role').value='พนักงาน';
   document.getElementById('u_active').value='true';
-  const sh=document.getElementById('u_sig'); if(sh) sh.value='';
-  clearSigCanvas();
+  // ไม่ล้างลายเซ็น — คงไว้เพื่อให้ใช้ซ้ำได้
   const prev=document.getElementById('sigPreview'); if(prev) prev.style.display='none';
-  clearSigUpload();
-  switchSigTab('draw');
   const ss=document.getElementById('sigStatus'); if(ss) ss.textContent='';
 }
 function deleteUser(id){
