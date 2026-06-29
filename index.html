@@ -2178,6 +2178,7 @@ function buildCertForRecord(t) {
     : '';
   return buildCertHTML({
     company:    s.companyName||'บริษัท',
+    address:    s.address||'',
     docNo:      t.documentNo||'',
     today,
     tableRows,
@@ -2924,7 +2925,7 @@ function buildCertHTMLForUpload(t, items, company, pos, reqSig, appSig) {
   const sigSlot = (id, savedSig) => savedSig
     ? `<img src="${savedSig}" style="max-height:72px;max-width:220px;object-fit:contain;display:block;margin:0 auto">`
     : '';
-  return buildCertHTML({ company, docNo:t.documentNo, today, tableRows,
+  return buildCertHTML({ company, address:S.settings?.address||'', docNo:t.documentNo, today, tableRows,
     total, bahtText:thbText(total), req:t.requester, pos, app:t.approver,
     fromDate, toDate, sigSlotReq:sigSlot('req',reqSig), sigSlotApp:sigSlot('app',appSig) });
 }
@@ -2962,7 +2963,7 @@ function dlCertWithItems(t, items, company, pos, reqSig, appSig) {
   const fromDate = formatThaiDate(items[0]?.date||t.date);
   const toDate   = formatThaiDate(items[items.length-1]?.date||t.date);
 
-  const html = buildCertHTML({ company, docNo:t.documentNo, today, tableRows,
+  const html = buildCertHTML({ company, address:S.settings?.address||'', docNo:t.documentNo, today, tableRows,
     total, bahtText:thbText(total), req:t.requester, pos, app:t.approver,
     fromDate, toDate, sigSlotReq:sigSlot('req',reqSig), sigSlotApp:sigSlot('app',appSig) });
 
@@ -3006,7 +3007,7 @@ function showCertModal(html) {
   doc.close();
 }
 
-function buildCertHTML({company,docNo,today,tableRows,total,bahtText,req,pos,app,fromDate,toDate,sigSlotReq,sigSlotApp}) {
+function buildCertHTML({company,address,docNo,today,tableRows,total,bahtText,req,pos,app,fromDate,toDate,sigSlotReq,sigSlotApp}) {
   const fmt = n => new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0));
   return `<!DOCTYPE html>
 <html lang="th"><head><meta charset="UTF-8">
@@ -3016,92 +3017,77 @@ function buildCertHTML({company,docNo,today,tableRows,total,bahtText,req,pos,app
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Sarabun',sans-serif;font-size:15px;color:#111;background:#fff}
-  .page{width:780px;margin:0 auto;padding:28px 36px 36px}
-  .hd-company{text-align:center;font-size:17px;font-weight:700;padding:4px 0}
-  .hd-title{text-align:center;font-size:16px;font-weight:600;padding:4px 0;margin-bottom:0}
-  .dotline{display:inline-block;min-width:180px;width:calc(100% - 4em);border-bottom:1px dotted #555;vertical-align:bottom;margin-left:4px}
-  table.items{width:100%;border-collapse:collapse}
-  table.items th{background:#dbeafe;border:1px solid #64748b;padding:6px 8px;font-size:15px;font-weight:700;text-align:center;white-space:nowrap}
-  table.items td{border-left:1px solid #64748b;border-right:1px solid #64748b;border-top:none;border-bottom:none;background:#fff;padding:4px 8px;font-size:15px;height:24px;line-height:1.4}
-  table.items tr:last-child td{border-bottom:1px solid #64748b}
-  table.items td:first-child{width:145px;white-space:nowrap} table.items td:nth-child(3){width:140px} table.items td:nth-child(4){width:130px}
+  .page{width:780px;margin:0 auto;padding:28px 36px 36px;border:1px solid #ccc}
+  .hd-title{text-align:center;font-size:18px;font-weight:700;margin-bottom:4px}
+  .hd-sub{text-align:center;font-size:15px;margin-bottom:12px}
+  .dotline{display:inline-block;border-bottom:1px solid #333;vertical-align:bottom;margin:0 4px}
+  .dl-lg{min-width:220px} .dl-md{min-width:130px} .dl-sm{min-width:80px}
+  table.items{width:100%;border-collapse:collapse;margin-bottom:0}
+  table.items th{border:1px solid #333;padding:5px 8px;font-size:15px;font-weight:700;text-align:center}
+  table.items td{border:1px solid #333;padding:4px 8px;font-size:15px;height:26px}
   td.num{text-align:right}
-  .tfoot-label td{border:1px solid #64748b;padding:5px 8px;font-size:15px;background:#dbeafe;font-weight:700;text-align:center}
-  .tfoot-baht td{border:1px solid #64748b;padding:4px 8px;font-size:15px;background:#fff}
-  .remark{font-size:15px;line-height:1.9;margin-top:8px}
-  .dl{display:inline-block;border-bottom:1px dotted #555;vertical-align:bottom;margin:0 2px}
-  .dl-lg{min-width:200px} .dl-md{min-width:120px}
-  .sig-grid{display:grid;grid-template-columns:1fr 1fr;margin-top:10px;gap:0}
-  .sig-right{text-align:center}
-  .sig-img-wrap{min-height:56px;display:flex;align-items:center;justify-content:center;margin-bottom:2px}
-  .sig-line{font-size:15px;line-height:2;display:flex;align-items:baseline;gap:4px}
-  .sig-dotline{flex:1;border-bottom:1px dotted #555;margin:0 6px}
-  .approve-note{font-size:15px;line-height:1.8;margin-top:6px}
-  button{font-family:'Sarabun',sans-serif}
+  .tfoot-sum td{border:1px solid #333;padding:5px 8px;font-size:15px;font-weight:700;text-align:center}
+  .remark{font-size:15px;line-height:2;margin-top:10px}
+  .sig-wrap{margin-top:16px;text-align:center}
+  .sig-line{font-size:15px;line-height:2.2}
+  .note-bottom{font-size:13px;color:#555;margin-top:16px;border-top:1px solid #ccc;padding-top:8px;text-align:center}
   @media print{
     .no-print{display:none!important}
     body{background:#fff}
-    .page{width:100%;padding:6px 18px}
-    /* ซ่อนปุ่มเลือกไฟล์และ hint ลายเซ็นตอนพิมพ์ */
-    label[for^="file_"],input[type="file"],div[style*="11px"],
-    .sig-upload-hint,.sig-file-btn{display:none!important}
-    /* ถ้าไม่มีรูปลายเซ็น ให้ sig-img-wrap มีความสูงน้อยลง */
-    .sig-img-wrap{min-height:40px!important}
-    table.items td{height:18px!important;padding:2px 6px!important;font-size:12px!important}
-    table.items th{padding:3px 6px!important;font-size:12px!important}
-    .tfoot-label td,.tfoot-baht td{padding:3px 6px!important;font-size:12px!important}
-    .hd-company{font-size:14px!important}
-    .hd-title{font-size:13px!important}
-    .remark{font-size:12px!important;line-height:1.8!important;margin-top:8px!important}
-    .sig-grid{margin-top:16px!important}
-    .sig-line{font-size:12px!important}
-    .approve-note{font-size:12px!important;margin-top:8px!important}
-    @page{size:A4 portrait;margin:10mm 12mm}
+    .page{width:100%;padding:10px 18px;border:none}
+    label[for^="file_"],input[type="file"],.sig-upload-hint,.sig-file-btn,.no-print{display:none!important}
+    table.items td{height:20px!important;padding:2px 6px!important;font-size:13px!important}
+    table.items th,.tfoot-sum td{padding:3px 6px!important;font-size:13px!important}
+    .remark{font-size:13px!important}
+    .sig-line{font-size:13px!important}
+    @page{size:A4 portrait;margin:10mm 14mm}
   }
 </style></head><body>
 <div class="page">
-  <div class="hd-company">${company}</div>
   <div class="hd-title">ใบรับรองแทนใบเสร็จรับเงิน</div>
-  <table style="width:100%;border-collapse:collapse;margin-bottom:0">
-    <tr>
-      <td style="width:50%;border:1px solid #94a3b8;padding:3px 8px">&nbsp;</td>
-      <td style="width:50%;border:1px solid #94a3b8;padding:6px 16px;text-align:right">
-        <div style="font-size:15px;line-height:2">เลขที่<span class="dotline">${docNo}</span></div>
-        <div style="font-size:15px;line-height:2">วันที่<span class="dotline">${today}</span></div>
-      </td>
-    </tr>
-  </table>
+  <div class="hd-sub"><span class="dotline dl-lg">${company}</span> (ผู้ซื้อ/ผู้รับบริการ)</div>
+  ${address ? `<div style="text-align:center;font-size:14px;color:#444;margin-bottom:10px">${address}</div>` : ''}
   <table class="items">
-    <thead><tr><th>วัน เดือน ปี</th><th>รายละเอียดรายจ่าย</th><th>จำนวนเงิน (บาท)</th><th>หมายเหตุ</th></tr></thead>
+    <thead>
+      <tr>
+        <th style="width:150px">วัน เดือน ปี</th>
+        <th>รายละเอียดรายจ่าย</th>
+        <th style="width:140px">จำนวนเงิน (บาท)</th>
+        <th style="width:130px">หมายเหตุ</th>
+      </tr>
+    </thead>
     <tbody>${tableRows}</tbody>
     <tfoot>
-      <tr class="tfoot-label"><td colspan="2">รวมทั้งสิ้น</td><td class="num">${fmt(total)}</td><td></td></tr>
-      <tr class="tfoot-baht"><td colspan="2" style="text-align:center;font-weight:600">ตัวอักษร (${bahtText})</td><td></td><td></td></tr>
+      <tr class="tfoot-sum">
+        <td colspan="2" style="text-align:center">รวมทั้งสิ้น</td>
+        <td class="num">${fmt(total)}</td>
+        <td></td>
+      </tr>
     </tfoot>
   </table>
   <div class="remark">
-    <div>ข้าพเจ้า<span class="dl dl-lg">${req||''}</span>(ผู้เบิกจ่าย) ตำแหน่ง<span class="dl dl-md">${pos||''}</span>ขอรับรองว่ารายจ่ายข้างต้นนี้ ไม่อาจเรียกใบเสร็จรับเงินจากผู้รับได้ และข้าพเจ้าได้จ่ายเงินไปในงานของทาง<span class="dl dl-lg">${company}</span>จำกัด โดยแท้</div>
-    <div>ตั้งแต่วันที่<span class="dl dl-md">${fromDate}</span>ถึงวันที่<span class="dl dl-md">${toDate}</span></div>
+    <div>รวมทั้งสิ้น (ตัวอักษร) <span class="dotline dl-lg">${bahtText}</span></div>
+    <div>ข้าพเจ้า <span class="dotline dl-lg">${req||''}</span> (ผู้เบิกจ่าย) ตำแหน่ง<span class="dotline dl-md">${pos||''}</span></div>
+    <div>ขอรับรองว่า รายจ่ายข้างต้นนี้ไม่อาจเรียกเก็บใบเสร็จรับเงินจากผู้รับได้ และข้าพเจ้าได้จ่ายเงินไปในงานของทาง</div>
+    <div>บริษัท / ห้างหุ้นส่วนจำกัด <span class="dotline dl-lg">${company}</span> โดยแท้ ตั้งแต่วันที่<span class="dotline dl-md">${fromDate}</span>ถึงวันที่<span class="dotline dl-md">${toDate}</span></div>
   </div>
-  <div class="sig-grid">
-    <div></div>
-    <div class="sig-right">
-      <div style="margin-top:8px;text-align:center">
-        ${sigSlotReq ? `<div style="min-height:56px;display:flex;align-items:center;justify-content:center;margin-bottom:4px">${sigSlotReq}</div>` : ''}
-        <div class="sig-line">ลงชื่อ<span class="sig-dotline"></span>(ผู้เบิกจ่าย)</div>
-        <div style="font-size:14px;text-align:center;width:100%">(${req||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'})</div>
+  <div class="sig-wrap">
+    <div style="margin-top:20px">
+      <div style="min-height:56px;display:flex;align-items:center;justify-content:center;margin-bottom:2px">
+        ${sigSlotReq||''}
       </div>
-      <div style="margin-top:76px;text-align:center">
-        ${sigSlotApp ? `<div style="min-height:56px;display:flex;align-items:center;justify-content:center;margin-bottom:4px">${sigSlotApp}</div>` : ''}
-        <div class="sig-line">ลงชื่อ<span class="sig-dotline"></span>(ผู้อนุมัติ)</div>
-        <div style="font-size:14px;text-align:center;width:100%">(${app||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'})</div>
+      <div class="sig-line">ลงชื่อ...........................................................................(ผู้เบิกจ่าย)</div>
+      <div style="font-size:14px">(${req||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'})</div>
+    </div>
+    <div style="margin-top:20px">
+      <div style="min-height:56px;display:flex;align-items:center;justify-content:center;margin-bottom:2px">
+        ${sigSlotApp||''}
       </div>
+      <div class="sig-line">ลงชื่อ...........................................................................(ผู้อนุมัติ)</div>
+      <div style="font-size:14px">(${app||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'})</div>
     </div>
   </div>
-  <div class="approve-note" style="margin-top:10px">
-    <div><strong>สำหรับบัญชี</strong></div>
-    <div>จ่ายผ่าน (เงินสดย่อย/โอนเงิน) เมื่อวันที่<span class="dl dl-md"></span></div>
-  </div>
+  <div class="note-bottom">(เป็นเอกสารตัวอย่างเพื่อประกอบความเข้าใจเท่านั้น อาจไม่ครอบคลุมทุกกิจการ จึงต้องมีการปรับใช้ให้เหมาะสม)</div>
 </div>
 <script>
 function loadSig(id,input){if(!input.files||!input.files[0])return;const r=new FileReader();r.onload=e=>{const img=document.getElementById('img_'+id);if(img){img.src=e.target.result;img.style.display='block';const wrap=document.getElementById('wrap_'+id);if(wrap){wrap.querySelectorAll('label,input[type=file],div').forEach(el=>el.style.display='none');img.style.display='block';}}};r.readAsDataURL(input.files[0]);}
@@ -3894,7 +3880,7 @@ function renderCatsTab() {
 
   if (cardsEl) {
     cardsEl.innerHTML = rows.map(({c,txns,total})=>`
-      <div onclick="editCat('${c.id}')" style="
+      <div onclick="${S.user?.role!=='ผู้ขอเบิก'?`editCat('${c.id}')`:''}" style="cursor:${S.user?.role!=='ผู้ขอเบิก'?'pointer':'default'};
         background:var(--surface);border:1.5px solid var(--border);border-radius:14px;
         padding:16px;cursor:pointer;transition:all .15s;text-align:center;
         border-top:3px solid ${c.color||'var(--primary)'}"
@@ -3916,8 +3902,7 @@ function renderCatsTab() {
         <td style="font-weight:700;color:var(--primary-g)">${thb(total)}</td>
         <td>${txns.length}</td>
         <td style="display:flex;gap:6px">
-          <button class="ghost sm" onclick="editCat('${c.id}')">แก้ไข</button>
-          <button class="danger sm" onclick="deleteCat('${c.id}')">ลบ</button>
+          ${(S.user?.role!=='ผู้ขอเบิก')?`<button class="ghost sm" onclick="editCat('${c.id}')">แก้ไข</button><button class="danger sm" onclick="deleteCat('${c.id}')">ลบ</button>`:''}
         </td>
       </tr>`).join('') ||
       '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีหมวด</td></tr>';
