@@ -1818,8 +1818,11 @@ function renderTxns() {
         (t.receipt||'-')}</td>
       <td style="display:flex;gap:5px;flex-wrap:wrap">
         ${t.status==='รออนุมัติ' ? `
+        ${(S.user?.role==='ผู้อนุมัติ' || S.user?.role==='แอดมิน' || t.requester===S.user?.displayName) ? `<button class="ghost sm" onclick="editTx('${t.id}')">✏️ แก้ไข</button>` : ''}
+        ${(S.user?.role==='ผู้อนุมัติ') ? `
         <button class="app-btn sky sm" onclick="approveWithOptions('${t.id}')">✓ อนุมัติ</button>
         <button class="rej-btn danger sm" onclick="updateStatus('${t.id}','ไม่อนุมัติ')">✗ ไม่อนุมัติ</button>
+        ` : ''}
         ` : `<span style="font-size:12px;color:var(--muted)">${t.status==='อนุมัติ'?'✓ อนุมัติแล้ว':'✗ ไม่อนุมัติ'}</span>`}
       </td>
     </tr>`).join('') :
@@ -2194,6 +2197,34 @@ async function saveTxMulti() {
 }
 
 // ── SAVE TRANSACTION (single — compat) ──
+let _editingTxId = null;
+
+function editTx(id) {
+  const t = S.transactions.find(x=>x.id===id);
+  if (!t) return showToast('ไม่พบรายการ','error');
+  if (t.status !== 'รออนุมัติ') return showToast('แก้ไขได้เฉพาะรายการที่ยังไม่อนุมัติ','error');
+
+  _editingTxId = id;
+  switchTab('record');
+
+  document.getElementById('f_req').value        = t.requester || '';
+  document.getElementById('f_date').value       = t.date || '';
+  document.getElementById('f_desc').value       = t.description || '';
+  document.getElementById('f_amount').value     = t.amount || 0;
+  document.getElementById('f_cat').value        = t.category || '';
+  document.getElementById('f_vendor').value     = t.vendor || '';
+  if (document.getElementById('f_vendor_tax')) document.getElementById('f_vendor_tax').value = t.vendorTax || '';
+  document.getElementById('f_note').value       = t.note || '';
+  document.getElementById('f_taxMode').value    = (t.vatAmount>0) ? 'มี VAT' : 'ไม่มี VAT';
+  document.getElementById('f_whtMode').value    = (t.whtAmount>0) ? 'มี หัก ณ ที่จ่าย' : 'ไม่มี หัก ณ ที่จ่าย';
+  document.getElementById('f_receipt').value    = (t.receipt==='ใบรับรองแทนใบเสร็จรับเงิน') ? 'none' : (t.receipt||'ใบกำกับภาษี');
+  document.getElementById('f_docReceived').value = t.docReceived || 'yes';
+  if (document.getElementById('f_req_fund') && t.fundId) document.getElementById('f_req_fund').value = t.fundId;
+
+  recalc(); renderCatChips(); updateDocPreview();
+  showToast('กำลังแก้ไขรายการ: ' + (t.documentNo||''), '');
+}
+
 async function saveTx(addAnother=false) {
   // ── Validation ──
   const desc = document.getElementById('f_desc').value.trim();
@@ -2234,12 +2265,16 @@ async function saveTx(addAnother=false) {
 
     const nowStr = new Date().toISOString();
     const docReceived = document.getElementById('f_docReceived').value;
+    const isEditing = !!_editingTxId;
+    const existing = isEditing ? S.transactions.find(x=>x.id===_editingTxId) : null;
 
     record = {
-      id: 'TX-' + uid(), createdAt: nowStr, updatedAt: nowStr,
+      id: isEditing ? _editingTxId : ('TX-' + uid()),
+      createdAt: isEditing ? (existing?.createdAt || nowStr) : nowStr,
+      updatedAt: nowStr,
       date: dateVal,
       type: 'expense',
-      documentNo: docNo,
+      documentNo: isEditing ? (existing?.documentNo || docNo) : docNo,
       fundId: document.getElementById('f_req_fund')?.value || '',
       category: document.getElementById('f_cat').value,
       description: desc,
@@ -2251,7 +2286,9 @@ async function saveTx(addAnother=false) {
       docReceived,
       note: document.getElementById('f_note').value,
       vendor: document.getElementById('f_vendor')?.value.trim() || '',
-      attachmentUrl, attachmentName,
+      vendorTax: document.getElementById('f_vendor_tax')?.value.trim() || '',
+      attachmentUrl: attachmentUrl || (isEditing ? (existing?.attachmentUrl||'') : ''),
+      attachmentName: attachmentName || (isEditing ? (existing?.attachmentName||'') : ''),
     };
 
     toast.remove();
@@ -2266,9 +2303,16 @@ async function saveTx(addAnother=false) {
   async function _doSave() {
     const t2 = showToast('กำลังบันทึก...', '');
     try {
-      S.transactions.unshift(record);
+      if (isEditing) {
+        const idx = S.transactions.findIndex(x=>x.id===record.id);
+        if (idx>=0) S.transactions[idx] = record;
+        else S.transactions.unshift(record);
+      } else {
+        S.transactions.unshift(record);
+      }
       await writeJson('transactions', S.transactions);
       t2.remove();
+      _editingTxId = null;
       if (addAnother) {
         showToast('บันทึกเรียบร้อย ✓ กรอกรายการถัดไปได้เลย', 'success');
         document.getElementById('f_desc').value    = '';
@@ -2284,7 +2328,7 @@ async function saveTx(addAnother=false) {
         recalc(); renderCatChips(); updateDocPreview();
         document.getElementById('f_desc').focus();
       } else {
-        showToast('บันทึกเรียบร้อย เลขที่: ' + record.documentNo, 'success');
+        showToast((isEditing ? 'แก้ไขเรียบร้อย เลขที่: ' : 'บันทึกเรียบร้อย เลขที่: ') + record.documentNo, 'success');
         if (record.receipt === 'ใบรับรองแทนใบเสร็จรับเงิน') {
           setTimeout(() => { if (confirm('สร้างใบรับรองแทนใบเสร็จรับเงินเลยไหม?')) dlCert(JSON.stringify(record)); }, 400);
         }
@@ -2338,6 +2382,7 @@ async function saveTx(addAnother=false) {
 }
 
 function clearForm() {
+  _editingTxId = null;
   ['f_desc','f_note'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   const ff = document.getElementById('f_file'); if(ff) ff.value='';
   document.getElementById('f_amount').value=0;
