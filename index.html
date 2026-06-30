@@ -666,7 +666,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
           <thead><tr>
             <th>วันที่</th><th>เลขที่</th><th>หมวด</th><th>รายละเอียด</th>
             <th>พนักงาน</th><th>ยอดสุทธิ</th><th>สถานะ</th><th>ได้รับเอกสาร</th>
-            <th>ไฟล์แนบ</th><th>เอกสาร</th><th>จัดการ</th>
+            <th>ไฟล์แนบ</th><th>เอกสาร</th><th style="position:sticky;right:0;background:var(--surface2);z-index:5;box-shadow:-4px 0 8px -4px rgba(0,0,0,.15)">จัดการ</th>
           </tr></thead>
           <tbody id="txBody"></tbody>
         </table>
@@ -1816,7 +1816,7 @@ function renderTxns() {
       <td>${t.receipt==='ใบรับรองแทนใบเสร็จรับเงิน'?
         `<button class="ghost sm" onclick='dlCert(${JSON.stringify(JSON.stringify(t))})'>📄 ดาวน์โหลด</button>`:
         (t.receipt||'-')}</td>
-      <td style="min-width:90px;max-width:110px">
+      <td style="min-width:90px;max-width:110px;position:sticky;right:0;background:var(--surface);z-index:4;box-shadow:-4px 0 8px -4px rgba(0,0,0,.15)">
         <div style="display:flex;flex-direction:column;gap:5px">
         ${t.status==='รออนุมัติ' ? `
         ${(S.user?.role==='ผู้อนุมัติ' || S.user?.role==='แอดมิน' || t.requester===S.user?.displayName) ? `<button class="ghost sm" onclick="editTx('${t.id}')" style="white-space:nowrap">✏️ แก้ไข</button>` : ''}
