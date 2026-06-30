@@ -666,7 +666,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
           <thead><tr>
             <th>วันที่</th><th>เลขที่</th><th>หมวด</th><th>รายละเอียด</th>
             <th>พนักงาน</th><th>ยอดสุทธิ</th><th>สถานะ</th><th>ได้รับเอกสาร</th>
-            <th>ไฟล์แนบ</th><th>เอกสาร</th><th style="position:sticky;right:0;background:var(--surface2);z-index:5;box-shadow:-4px 0 8px -4px rgba(0,0,0,.15)">จัดการ</th>
+            <th>ไฟล์แนบ</th><th>เอกสาร</th><th style="position:sticky;right:0;background:var(--surface2);z-index:5;box-shadow:-4px 0 8px -4px rgba(0,0,0,.15);min-width:108px;max-width:118px;text-align:center">จัดการ</th>
           </tr></thead>
           <tbody id="txBody"></tbody>
         </table>
@@ -1813,18 +1813,18 @@ function renderTxns() {
         </div>`;
         return `<a href="${t.attachmentUrl}" target="_blank" style="color:var(--primary-g);font-weight:600;font-size:12px">📎 ${name}</a>`;
       })() : '-'}</td>
-      <td>${t.receipt==='ใบรับรองแทนใบเสร็จรับเงิน'?
-        `<button class="ghost sm" onclick='dlCert(${JSON.stringify(JSON.stringify(t))})'>📄 ดาวน์โหลด</button>`:
+      <td style="min-width:110px">${t.receipt==='ใบรับรองแทนใบเสร็จรับเงิน'?
+        `<button class="ghost sm" onclick='dlCert(${JSON.stringify(JSON.stringify(t))})' style="white-space:nowrap">📄 ดาวน์โหลด</button>`:
         (t.receipt||'-')}</td>
-      <td style="min-width:90px;max-width:110px;position:sticky;right:0;background:var(--surface);z-index:4;box-shadow:-4px 0 8px -4px rgba(0,0,0,.15)">
+      <td style="min-width:108px;max-width:118px;position:sticky;right:0;background:var(--surface);z-index:4;box-shadow:-4px 0 8px -4px rgba(0,0,0,.15);padding:8px 6px">
         <div style="display:flex;flex-direction:column;gap:5px">
         ${t.status==='รออนุมัติ' ? `
-        ${(S.user?.role==='ผู้อนุมัติ' || S.user?.role==='แอดมิน' || t.requester===S.user?.displayName) ? `<button class="ghost sm" onclick="editTx('${t.id}')" style="white-space:nowrap">✏️ แก้ไข</button>` : ''}
+        ${(S.user?.role==='ผู้อนุมัติ' || S.user?.role==='แอดมิน' || t.requester===S.user?.displayName) ? `<button class="ghost sm" onclick="editTx('${t.id}')" style="white-space:nowrap;width:100%;text-align:center">✏️ แก้ไข</button>` : ''}
         ${(S.user?.role==='ผู้อนุมัติ') ? `
-        <button class="app-btn sky sm" onclick="approveWithOptions('${t.id}')" style="white-space:nowrap">✓ อนุมัติ</button>
-        <button class="rej-btn danger sm" onclick="updateStatus('${t.id}','ไม่อนุมัติ')" style="white-space:nowrap">✗ ไม่อนุมัติ</button>
+        <button class="app-btn sky sm" onclick="approveWithOptions('${t.id}')" style="white-space:nowrap;width:100%;text-align:center">✓ อนุมัติ</button>
+        <button class="rej-btn danger sm" onclick="updateStatus('${t.id}','ไม่อนุมัติ')" style="white-space:nowrap;width:100%;text-align:center">✗ ไม่อนุมัติ</button>
         ` : ''}
-        ` : `<span style="font-size:12px;color:var(--muted)">${t.status==='อนุมัติ'?'✓ อนุมัติแล้ว':'✗ ไม่อนุมัติ'}</span>`}
+        ` : `<span style="font-size:12px;color:var(--muted);white-space:nowrap">${t.status==='อนุมัติ'?'✓ อนุมัติแล้ว':'✗ ไม่อนุมัติ'}</span>`}
         </div>
       </td>
     </tr>`).join('') :
