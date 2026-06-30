@@ -75,7 +75,7 @@ body{font-family:'Noto Sans Thai',Tahoma,sans-serif;background:var(--bg);color:v
   .nav{gap:3px;padding:4px}
   .nav button{font-size:clamp(11px,3.8vw,15px);padding:6px 8px}
   .company-name{font-size:clamp(15px,4vw,20px)}
-  table{white-space:nowrap}
+  table{display:block;overflow-x:auto;white-space:nowrap}
   .header-right button,.header-right span{font-size:clamp(14px,3vw,20px)!important;padding:5px 8px}
   .badge{font-size:clamp(14px,3vw,20px)}
   h1,h2,.section-title{font-size:clamp(15px,4.5vw,20px)}
@@ -142,12 +142,11 @@ button:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
   box-shadow:0 2px 12px rgba(59,130,246,.4)}
 
 /* ── TABLE ── */
-.table-wrap{overflow-x:auto;margin-top:10px;max-width:100%;-webkit-overflow-scrolling:touch}
-.table-wrap table{width:max-content;min-width:100%}
-table{width:100%;border-collapse:collapse}
-th{background:var(--bg2);color:var(--text2);font-size:13px;font-weight:700;letter-spacing:.03em;
-  text-transform:uppercase;padding:9px 10px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap}
-td{padding:9px 10px;border-bottom:1px solid var(--border);font-size:14px;vertical-align:middle}
+.table-wrap{overflow-x:auto;margin-top:10px}
+table{width:100%;border-collapse:collapse;min-width:720px}
+th{background:var(--bg2);color:var(--text2);font-size:17px;font-weight:700;letter-spacing:.03em;
+  text-transform:uppercase;padding:10px 14px;text-align:left;border-bottom:2px solid var(--border)}
+td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:17px;vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(59,130,246,.04)}
 
@@ -667,7 +666,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
           <thead><tr>
             <th>วันที่</th><th>เลขที่</th><th>หมวด</th><th>รายละเอียด</th>
             <th>พนักงาน</th><th>ยอดสุทธิ</th><th>สถานะ</th><th>ได้รับเอกสาร</th>
-            <th>ไฟล์แนบ</th><th>เอกสาร</th><th style="position:sticky;right:0;background:var(--surface2);z-index:5;box-shadow:-4px 0 8px -4px rgba(0,0,0,.15);min-width:108px;max-width:118px;text-align:center">จัดการ</th>
+            <th>ไฟล์แนบ</th><th>เอกสาร</th><th>จัดการ</th>
           </tr></thead>
           <tbody id="txBody"></tbody>
         </table>
@@ -1814,18 +1813,18 @@ function renderTxns() {
         </div>`;
         return `<a href="${t.attachmentUrl}" target="_blank" style="color:var(--primary-g);font-weight:600;font-size:12px">📎 ${name}</a>`;
       })() : '-'}</td>
-      <td style="min-width:110px">${t.receipt==='ใบรับรองแทนใบเสร็จรับเงิน'?
-        `<button class="ghost sm" onclick='dlCert(${JSON.stringify(JSON.stringify(t))})' style="white-space:nowrap">📄 ดาวน์โหลด</button>`:
+      <td>${t.receipt==='ใบรับรองแทนใบเสร็จรับเงิน'?
+        `<button class="ghost sm" onclick='dlCert(${JSON.stringify(JSON.stringify(t))})'>📄 ดาวน์โหลด</button>`:
         (t.receipt||'-')}</td>
-      <td style="min-width:108px;max-width:118px;position:sticky;right:0;background:var(--surface);z-index:4;box-shadow:-4px 0 8px -4px rgba(0,0,0,.15);padding:8px 6px">
+      <td style="min-width:90px;max-width:110px">
         <div style="display:flex;flex-direction:column;gap:5px">
         ${t.status==='รออนุมัติ' ? `
-        ${(S.user?.role==='ผู้อนุมัติ' || S.user?.role==='แอดมิน' || t.requester===S.user?.displayName) ? `<button class="ghost sm" onclick="editTx('${t.id}')" style="white-space:nowrap;width:100%;text-align:center">✏️ แก้ไข</button>` : ''}
+        ${(S.user?.role==='ผู้อนุมัติ' || S.user?.role==='แอดมิน' || t.requester===S.user?.displayName) ? `<button class="ghost sm" onclick="editTx('${t.id}')" style="white-space:nowrap">✏️ แก้ไข</button>` : ''}
         ${(S.user?.role==='ผู้อนุมัติ') ? `
-        <button class="app-btn sky sm" onclick="approveWithOptions('${t.id}')" style="white-space:nowrap;width:100%;text-align:center">✓ อนุมัติ</button>
-        <button class="rej-btn danger sm" onclick="updateStatus('${t.id}','ไม่อนุมัติ')" style="white-space:nowrap;width:100%;text-align:center">✗ ไม่อนุมัติ</button>
+        <button class="app-btn sky sm" onclick="approveWithOptions('${t.id}')" style="white-space:nowrap">✓ อนุมัติ</button>
+        <button class="rej-btn danger sm" onclick="updateStatus('${t.id}','ไม่อนุมัติ')" style="white-space:nowrap">✗ ไม่อนุมัติ</button>
         ` : ''}
-        ` : `<span style="font-size:12px;color:var(--muted);white-space:nowrap">${t.status==='อนุมัติ'?'✓ อนุมัติแล้ว':'✗ ไม่อนุมัติ'}</span>`}
+        ` : `<span style="font-size:12px;color:var(--muted)">${t.status==='อนุมัติ'?'✓ อนุมัติแล้ว':'✗ ไม่อนุมัติ'}</span>`}
         </div>
       </td>
     </tr>`).join('') :
