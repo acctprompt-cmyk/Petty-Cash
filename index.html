@@ -2205,7 +2205,7 @@ function editTx(id) {
   if (t.status !== 'รออนุมัติ') return showToast('แก้ไขได้เฉพาะรายการที่ยังไม่อนุมัติ','error');
 
   _editingTxId = id;
-  switchTab('record');
+  switchTab('request');
 
   document.getElementById('f_req').value        = t.requester || '';
   document.getElementById('f_date').value       = t.date || '';
