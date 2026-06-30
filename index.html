@@ -2148,31 +2148,46 @@ async function saveTxMulti() {
 
   // สร้างรายการ 1 รายการต่อ 1 line item แต่ใช้ VAT/WHT ตามสัดส่วน
   const now = new Date().toISOString();
+  const isEditing = !!_editingTxId;
+  const existing  = isEditing ? S.transactions.find(x=>x.id===_editingTxId) : null;
   const newTxns = items.map((item, i) => {
     const ratio   = totalAmt>0 ? item.amt/totalAmt : 1/items.length;
     const iVat    = Math.round(vatAmt*ratio*100)/100;
     const iIncl   = item.amt + iVat;
     const iWht    = Math.round(whtAmt*ratio*100)/100;
     const iNet    = iIncl - iWht;
+    const useExisting = isEditing && i===0; // แก้ไขแบบ 1 รายการ → ใช้ id/documentNo เดิม
     return {
-      id: 'TX-'+uid(), createdAt: now, updatedAt: now,
+      id: useExisting ? existing.id : ('TX-'+uid()),
+      createdAt: useExisting ? (existing.createdAt||now) : now,
+      updatedAt: now,
       date: dateVal, type: 'expense',
-      documentNo: genDocNo(dateVal) + (items.length>1 ? `-${String(i+1).padStart(2,'0')}` : ''),
+      documentNo: useExisting ? (existing.documentNo||firstDocNo) : (genDocNo(dateVal) + (items.length>1 ? `-${String(i+1).padStart(2,'0')}` : '')),
       fundId, category: item.cat, description: item.desc,
       amount: item.amt, beforeVat: item.amt, vatAmount: iVat, amountIncludeVat: iIncl,
       whtAmount: iWht, netPaid: iNet,
       requester: req, approver: S.settings?.approver||'',
       receipt, status: 'รออนุมัติ', docReceived: docRcv,
-      note, vendor, vendorTax, attachmentUrl, attachmentName,
+      note, vendor, vendorTax,
+      attachmentUrl: attachmentUrl || (useExisting ? (existing.attachmentUrl||'') : ''),
+      attachmentName: attachmentName || (useExisting ? (existing.attachmentName||'') : ''),
     };
   });
 
   try {
-    // บันทึกข้อมูลทันที ไม่รอ upload ไฟล์
-    S.transactions.unshift(...newTxns.reverse());
+    if (isEditing) {
+      const idx = S.transactions.findIndex(x=>x.id===_editingTxId);
+      if (idx>=0) S.transactions[idx] = newTxns[0];
+      else S.transactions.unshift(newTxns[0]);
+      // ถ้ามีรายการเพิ่มเติมตอนแก้ไข (มากกว่า 1 line item) ให้เพิ่มเป็นรายการใหม่
+      if (newTxns.length>1) S.transactions.unshift(...newTxns.slice(1).reverse());
+    } else {
+      S.transactions.unshift(...newTxns.reverse());
+    }
     await writeJson('transactions', S.transactions);
     toast.remove();
-    showToast(`บันทึก ${newTxns.length} รายการเรียบร้อย ✓`, 'success');
+    showToast(isEditing ? 'แก้ไขเรียบร้อย ✓' : `บันทึก ${newTxns.length} รายการเรียบร้อย ✓`, 'success');
+    _editingTxId = null;
     clearForm(); renderTxns(); switchTab('transactions');
     checkFundAlerts(false);
 
@@ -2209,9 +2224,6 @@ function editTx(id) {
 
   document.getElementById('f_req').value        = t.requester || '';
   document.getElementById('f_date').value       = t.date || '';
-  document.getElementById('f_desc').value       = t.description || '';
-  document.getElementById('f_amount').value     = t.amount || 0;
-  document.getElementById('f_cat').value        = t.category || '';
   document.getElementById('f_vendor').value     = t.vendor || '';
   if (document.getElementById('f_vendor_tax')) document.getElementById('f_vendor_tax').value = t.vendorTax || '';
   document.getElementById('f_note').value       = t.note || '';
@@ -2221,7 +2233,12 @@ function editTx(id) {
   document.getElementById('f_docReceived').value = t.docReceived || 'yes';
   if (document.getElementById('f_req_fund') && t.fundId) document.getElementById('f_req_fund').value = t.fundId;
 
-  recalc(); renderCatChips(); updateDocPreview();
+  // เติมรายการลงใน line items (ล้างของเดิมก่อน แล้วเติมตามรายการจริง)
+  const container = document.getElementById('lineItems');
+  if (container) container.innerHTML = '';
+  addLineItem(t.description || '', t.category || '', t.amount || '');
+
+  recalcLineItems(); recalc(); updateDocPreview();
   showToast('กำลังแก้ไขรายการ: ' + (t.documentNo||''), '');
 }
 
