@@ -1816,14 +1816,16 @@ function renderTxns() {
       <td>${t.receipt==='ใบรับรองแทนใบเสร็จรับเงิน'?
         `<button class="ghost sm" onclick='dlCert(${JSON.stringify(JSON.stringify(t))})'>📄 ดาวน์โหลด</button>`:
         (t.receipt||'-')}</td>
-      <td style="display:flex;gap:5px;flex-wrap:wrap">
+      <td style="min-width:90px;max-width:110px">
+        <div style="display:flex;flex-direction:column;gap:5px">
         ${t.status==='รออนุมัติ' ? `
-        ${(S.user?.role==='ผู้อนุมัติ' || S.user?.role==='แอดมิน' || t.requester===S.user?.displayName) ? `<button class="ghost sm" onclick="editTx('${t.id}')">✏️ แก้ไข</button>` : ''}
+        ${(S.user?.role==='ผู้อนุมัติ' || S.user?.role==='แอดมิน' || t.requester===S.user?.displayName) ? `<button class="ghost sm" onclick="editTx('${t.id}')" style="white-space:nowrap">✏️ แก้ไข</button>` : ''}
         ${(S.user?.role==='ผู้อนุมัติ') ? `
-        <button class="app-btn sky sm" onclick="approveWithOptions('${t.id}')">✓ อนุมัติ</button>
-        <button class="rej-btn danger sm" onclick="updateStatus('${t.id}','ไม่อนุมัติ')">✗ ไม่อนุมัติ</button>
+        <button class="app-btn sky sm" onclick="approveWithOptions('${t.id}')" style="white-space:nowrap">✓ อนุมัติ</button>
+        <button class="rej-btn danger sm" onclick="updateStatus('${t.id}','ไม่อนุมัติ')" style="white-space:nowrap">✗ ไม่อนุมัติ</button>
         ` : ''}
         ` : `<span style="font-size:12px;color:var(--muted)">${t.status==='อนุมัติ'?'✓ อนุมัติแล้ว':'✗ ไม่อนุมัติ'}</span>`}
+        </div>
       </td>
     </tr>`).join('') :
     `<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:28px">ยังไม่มีรายการ — บันทึกรายการแรกได้เลย!</td></tr>`;
