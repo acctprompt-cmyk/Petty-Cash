@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Petty Cash — Super Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f0f4ff;--bg2:#e8eeff;--surface:#fff;--surface2:#f5f7ff;
+  --border:#d1d9f0;--border2:#a5b4fc;
+  --primary:#4f46e5;--primary-h:#4338ca;--text:#1e1b4b;--text2:#4b5563;--muted:#9ca3af;
+  --success:#059669;--success-bg:#d1fae5;--warn:#d97706;--warn-bg:#fef3c7;
+  --danger:#dc2626;--danger-bg:#fee2e2;--info:#1d4ed8;--info-bg:#dbeafe;
+  --shadow:0 2px 12px rgba(79,70,229,.10);--shadow-lg:0 12px 48px rgba(79,70,229,.18);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans Thai',Tahoma,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px}
+
+/* Login */
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:36px;width:100%;max-width:400px;box-shadow:var(--shadow-lg)}
+.login-box h1{font-size:22px;font-weight:700;margin-bottom:4px}
+.login-box .sub{font-size:13px;color:var(--text2);margin-bottom:24px}
+label{display:block;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;margin-top:14px}
+input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;background:var(--bg);color:var(--text);outline:none;transition:border .2s}
+input:focus{border-color:var(--primary);background:#fff}
+
+/* App */
+#app{display:none}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:100}
+.header-left{display:flex;align-items:center;gap:12px}
+.logo{font-size:28px}
+.app-title{font-size:18px;font-weight:700}
+.app-sub{font-size:12px;color:var(--muted)}
+.wrap{max-width:1400px;margin:0 auto;padding:24px 16px}
+
+/* Stats */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+@media(max-width:900px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:500px){.stat-grid{grid-template-columns:1fr}}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:var(--shadow)}
+.stat-label{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.stat-value{font-size:28px;font-weight:700}
+.stat-value.blue{color:var(--primary)}
+.stat-value.green{color:var(--success)}
+.stat-value.warn{color:var(--warn)}
+
+/* Table */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px;box-shadow:var(--shadow);margin-bottom:18px}
+.card-title{font-size:16px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;white-space:nowrap}
+th{background:var(--bg2);color:var(--text2);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;text-align:left;border-bottom:2px solid var(--border)}
+td{padding:12px 14px;border-bottom:1px solid var(--border);font-size:14px;vertical-align:middle}
+tr:last-child td{border:none}
+tr:hover td{background:rgba(79,70,229,.03)}
+
+/* Badge */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700}
+.badge-green{background:var(--success-bg);color:var(--success)}
+.badge-blue{background:var(--info-bg);color:var(--info)}
+.badge-warn{background:var(--warn-bg);color:var(--warn)}
+.badge-red{background:var(--danger-bg);color:var(--danger)}
+
+/* Buttons */
+button{border:none;padding:9px 16px;border-radius:9px;font-weight:700;cursor:pointer;font-family:inherit;font-size:13px;transition:all .18s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-h)}
+.btn-ghost{background:transparent;color:var(--text2);border:1.5px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);color:var(--text)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-sm{padding:5px 11px;font-size:12px}
+
+/* Modal */
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;align-items:center;justify-content:center;padding:20px}
+.modal-ov.show{display:flex}
+.modal-box{background:var(--surface);border-radius:20px;padding:28px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:16px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:500px){.row2{grid-template-columns:1fr}}
+.btn-row{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+.info-box{background:var(--info-bg);border:1px solid rgba(29,78,216,.15);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--info);margin-bottom:14px;line-height:1.8}
+
+/* Detail panel */
+.detail-row{display:flex;gap:8px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.detail-row:last-child{border:none}
+.detail-label{min-width:140px;font-weight:700;color:var(--text2)}
+.detail-val{color:var(--text);word-break:break-all}
+.mono{font-family:'JetBrains Mono',monospace;font-size:12px}
+
+/* Toast */
+#toast{position:fixed;bottom:24px;right:24px;background:#1e1b4b;color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:0 8px 32px rgba(0,0,0,.3);opacity:0;transform:translateY(20px);transition:all .3s;z-index:9999;max-width:320px}
+#toast.show{opacity:1;transform:translateY(0)}
+#toast.success{background:#059669}
+#toast.error{background:#dc2626}
+#toast.warn{background:#d97706}
+
+/* Search */
+.search-bar{display:flex;gap:10px;align-items:center;margin-bottom:16px}
+.search-bar input{flex:1;max-width:320px}
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="loginScreen" class="login-wrap">
+  <div class="login-box">
+    <div style="font-size:40px;margin-bottom:12px;text-align:center">🔐</div>
+    <h1 style="text-align:center">Super Admin</h1>
+    <div class="sub" style="text-align:center">Petty Cash — ระบบจัดการบริษัท</div>
+    <label>รหัสผ่าน Super Admin</label>
+    <input id="adminPass" type="password" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')adminLogin()">
+    <button onclick="adminLogin()" style="width:100%;margin-top:18px;padding:13px;background:var(--primary);color:#fff;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit">
+      เข้าสู่ระบบ
+    </button>
+    <div id="loginErr" style="color:var(--danger);font-size:13px;margin-top:10px;text-align:center"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">💰</div>
+      <div>
+        <div class="app-title">Petty Cash — Super Admin</div>
+        <div class="app-sub">จัดการบริษัทและผู้ใช้งานทั้งหมด</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="loadAll()" class="btn-ghost btn-sm">🔄 รีเฟรช</button>
+      <button onclick="showAddModal()" class="btn-primary btn-sm">➕ เพิ่มบริษัท</button>
+      <button onclick="adminLogout()" class="btn-ghost btn-sm">ออก</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- Stats -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">บริษัททั้งหมด</div>
+        <div class="stat-value blue" id="st_total">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ลงทะเบียนเดือนนี้</div>
+        <div class="stat-value green" id="st_month">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">มี Drive เชื่อมต่อ</div>
+        <div class="stat-value" id="st_drive">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">บริษัทล่าสุด</div>
+        <div style="font-size:15px;font-weight:700;color:var(--primary);margin-top:4px" id="st_latest">—</div>
+      </div>
+    </div>
+
+    <!-- Tenant Table -->
+    <div class="card">
+      <div class="card-title">
+        <span>🏢 รายชื่อบริษัทในระบบ</span>
+        <div style="font-size:13px;color:var(--muted)" id="lastRefresh"></div>
+      </div>
+      <div class="search-bar">
+        <input id="searchInput" placeholder="🔍 ค้นหาชื่อบริษัท หรือ รหัส..." oninput="renderTable()">
+        <button onclick="loadAll()" class="btn-ghost btn-sm">🔄</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>รหัส</th>
+              <th>ชื่อบริษัท</th>
+              <th>วันที่สมัคร</th>
+              <th>Firebase Path</th>
+              <th>Drive Folder</th>
+              <th>จำนวน Users</th>
+              <th>จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="tenantBody">
+            <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px">⏳ กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal เพิ่ม/แก้ไขบริษัท -->
+<div class="modal-ov" id="addModal">
+  <div class="modal-box">
+    <div class="modal-title" id="addModalTitle">➕ เพิ่มบริษัทใหม่</div>
+    <div class="info-box">
+      💡 รหัสบริษัทจะถูก Generate อัตโนมัติ ถ้าไม่กรอก<br>
+      Drive Folder ต้องแชร์ให้ account ระบบก่อน (Editor)
+    </div>
+    <div class="row2">
+      <div>
+        <label>รหัสบริษัท</label>
+        <input id="m_id" placeholder="อัตโนมัติ" style="text-transform:uppercase">
+      </div>
+      <div>
+        <label>ชื่อบริษัท *</label>
+        <input id="m_name" placeholder="บริษัท ABC จำกัด">
+      </div>
+    </div>
+    <label>ลิ้งค์ Google Drive *</label>
+    <input id="m_drive" placeholder="https://drive.google.com/drive/folders/1ABC...">
+    <label>Apps Script URL <span style="font-weight:400;color:var(--muted)">(ว่างไว้ใช้ค่า default)</span></label>
+    <input id="m_script" placeholder="https://script.google.com/macros/s/...">
+    <div style="border-top:1px solid var(--border);margin:16px 0"></div>
+    <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px">👤 Admin คนแรก (กรอกเฉพาะตอนสร้างใหม่)</div>
+    <div class="row2" id="adminFields">
+      <div>
+        <label>Username</label>
+        <input id="m_user" placeholder="admin">
+      </div>
+      <div>
+        <label>รหัสผ่าน</label>
+        <input id="m_pass" type="password" placeholder="รหัสผ่าน">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button onclick="closeAddModal()" class="btn-ghost">ยกเลิก</button>
+      <button onclick="saveCompany()" class="btn-primary">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal รายละเอียดบริษัท -->
+<div class="modal-ov" id="detailModal">
+  <div class="modal-box">
+    <div class="modal-title" id="detailTitle">📋 รายละเอียดบริษัท</div>
+    <div id="detailContent"></div>
+    <div style="border-top:1px solid var(--border);margin:16px 0"></div>
+    <div class="modal-title" style="font-size:14px">👥 Users ในบริษัทนี้</div>
+    <div id="usersList" style="max-height:240px;overflow-y:auto"></div>
+    <div class="btn-row">
+      <button onclick="document.getElementById('detailModal').classList.remove('show')" class="btn-ghost">ปิด</button>
+      <button onclick="resetAdminPass()" class="btn-danger btn-sm" id="resetPassBtn">🔑 รีเซ็ตรหัส Admin</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal รีเซ็ตรหัสผ่าน -->
+<div class="modal-ov" id="resetModal">
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-title">🔑 รีเซ็ตรหัสผ่าน Admin</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:14px">รหัสผ่านใหม่สำหรับ Admin ของบริษัทนี้</div>
+    <label>Username Admin</label>
+    <input id="rp_user" placeholder="admin" style="margin-bottom:12px">
+    <label>รหัสผ่านใหม่</label>
+    <input id="rp_pass" type="password" placeholder="อย่างน้อย 4 ตัว">
+    <div class="btn-row">
+      <button onclick="document.getElementById('resetModal').classList.remove('show')" class="btn-ghost">ยกเลิก</button>
+      <button onclick="confirmResetPass()" class="btn-danger">รีเซ็ต</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Config ──
+const REGISTRY_FB_URL    = 'https://petty-cash-ad50c-default-rtdb.asia-southeast1.firebasedatabase.app';
+const REGISTRY_FB_SECRET = 'ywzydr8HCiZalfbUKJnx0ovbkFcCD7SXMPdyFKGA';
+const REGISTRY_PATH      = 'registry/tenants';
+const SUPER_ADMIN_PASS   = 'admin3909*'; // เปลี่ยนได้
+const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8o3DtWCHSqU1h2ZaIpthKCcbJlN_p_LBBDWr_i63zVqRF4fqVjUn_pRf1_trsRILwvw/exec';
+const DEFAULT_TENANT_T001 = {
+  id: 'T-001', companyName: 'บริษัทตัวอย่าง จำกัด',
+  driveFolderId: '1ZHm3OvcSrhVYBOPbT-BYu-9sJaw16QC_',
+  fbPath: 'pca', createdAt: '2024-01-01T00:00:00.000Z',
+};
+
+let _tenants = [];
+let _selectedTenant = null;
+
+// ── Auth ──
+function adminLogin() {
+  const pass = document.getElementById('adminPass').value;
+  if (pass === SUPER_ADMIN_PASS) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadAll();
+  } else {
+    document.getElementById('loginErr').textContent = '❌ รหัสผ่านไม่ถูกต้อง';
+    setTimeout(() => document.getElementById('loginErr').textContent = '', 2000);
+  }
+}
+function adminLogout() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('adminPass').value = '';
+}
+
+// ── Firebase helpers ──
+async function fbGet(path) {
+  const url  = `${REGISTRY_FB_URL}/${path}.json?auth=${REGISTRY_FB_SECRET}`;
+  const resp = await fetch(url);
+  return await resp.json();
+}
+async function fbSet(path, data) {
+  const url  = `${REGISTRY_FB_URL}/${path}.json?auth=${REGISTRY_FB_SECRET}`;
+  await fetch(url, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+}
+
+// ── Load all tenants ──
+async function loadAll() {
+  document.getElementById('tenantBody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px">⏳ กำลังโหลด...</td></tr>';
+  try {
+    const data = await fbGet(REGISTRY_PATH);
+    const list = data ? Object.values(data).filter(Boolean) : [];
+    if (!list.find(t => t.id === 'T-001')) list.unshift(DEFAULT_TENANT_T001);
+    // โหลดจำนวน users แต่ละบริษัท
+    await Promise.all(list.map(async t => {
+      try {
+        const fbPath = t.fbPath || 'pca';
+        const users = await fbGet(`${fbPath}/users`);
+        const toArr = v => !v ? [] : (Array.isArray(v) ? v : Object.values(v)).filter(Boolean);
+        t._userCount = toArr(users).length;
+        t._users = toArr(users);
+      } catch(e) { t._userCount = '?'; t._users = []; }
+    }));
+    _tenants = list;
+    renderStats();
+    renderTable();
+    document.getElementById('lastRefresh').textContent = 'อัปเดต: ' + new Date().toLocaleTimeString('th-TH');
+  } catch(e) {
+    showToast('โหลดข้อมูลไม่ได้: ' + e.message, 'error');
+  }
+}
+
+function renderStats() {
+  const now   = new Date();
+  const month = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+  document.getElementById('st_total').textContent  = _tenants.length;
+  document.getElementById('st_month').textContent  = _tenants.filter(t => (t.createdAt||'').startsWith(month)).length;
+  document.getElementById('st_drive').textContent  = _tenants.filter(t => t.driveFolderId).length;
+  const latest = [..._tenants].sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''))[0];
+  document.getElementById('st_latest').textContent = latest ? latest.companyName || latest.id : '—';
+}
+
+function renderTable() {
+  const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const list = q ? _tenants.filter(t =>
+    (t.id||'').toLowerCase().includes(q) ||
+    (t.companyName||'').toLowerCase().includes(q)
+  ) : _tenants;
+
+  if (!list.length) {
+    document.getElementById('tenantBody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px">ไม่พบข้อมูล</td></tr>';
+    return;
+  }
+
+  document.getElementById('tenantBody').innerHTML = list.map(t => {
+    const date   = t.createdAt ? new Date(t.createdAt).toLocaleDateString('th-TH', {year:'numeric',month:'short',day:'numeric'}) : '—';
+    const driveId = t.driveFolderId || '';
+    const driveLink = driveId ? `<a href="https://drive.google.com/drive/folders/${driveId}" target="_blank" style="color:var(--primary);font-size:12px" class="mono">${driveId.slice(0,16)}...</a>` : '<span style="color:var(--muted)">—</span>';
+    const isNew  = t.createdAt && (new Date() - new Date(t.createdAt)) < 7*24*60*60*1000;
+    return `<tr>
+      <td><span style="font-weight:700;color:var(--primary)">${t.id}</span>${isNew ? ' <span class="badge badge-green" style="font-size:10px">ใหม่</span>' : ''}</td>
+      <td><div style="font-weight:600">${t.companyName||'—'}</div></td>
+      <td style="color:var(--text2);font-size:13px">${date}</td>
+      <td><span class="mono" style="font-size:12px;color:var(--text2)">${t.fbPath||'pca'}</span></td>
+      <td>${driveLink}</td>
+      <td><span class="badge ${t._userCount>0?'badge-blue':'badge-warn'}">${t._userCount} คน</span></td>
+      <td>
+        <div style="display:flex;gap:5px">
+          <button onclick="showDetail('${t.id}')" class="btn-ghost btn-sm">📋 ดู</button>
+          <button onclick="showEditModal('${t.id}')" class="btn-ghost btn-sm">✏️</button>
+          ${t.id!=='T-001'?`<button onclick="deleteCompany('${t.id}')" class="btn-danger btn-sm">🗑️</button>`:''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Add/Edit ──
+function showAddModal() {
+  _selectedTenant = null;
+  document.getElementById('addModalTitle').textContent = '➕ เพิ่มบริษัทใหม่';
+  document.getElementById('adminFields').style.display = 'grid';
+  ['m_id','m_name','m_drive','m_script','m_user','m_pass'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  // auto suggest รหัสถัดไป
+  if (_tenants.length) {
+    let max=1;
+    _tenants.forEach(t=>{ const m=(t.id||'').match(/T-0*(\d+)/); if(m) max=Math.max(max,parseInt(m[1])); });
+    document.getElementById('m_id').placeholder = 'T-' + String(max+1).padStart(3,'0') + ' (อัตโนมัติ)';
+  }
+  document.getElementById('addModal').classList.add('show');
+}
+
+function showEditModal(id) {
+  const t = _tenants.find(x=>x.id===id);
+  if (!t) return;
+  _selectedTenant = t;
+  document.getElementById('addModalTitle').textContent = '✏️ แก้ไขบริษัท: ' + t.id;
+  document.getElementById('adminFields').style.display = 'none';
+  document.getElementById('m_id').value     = t.id;
+  document.getElementById('m_name').value   = t.companyName||'';
+  document.getElementById('m_drive').value  = t.driveFolderId ? `https://drive.google.com/drive/folders/${t.driveFolderId}` : '';
+  document.getElementById('m_script').value = t.appsScriptUrl||'';
+  document.getElementById('addModal').classList.add('show');
+}
+
+function closeAddModal() { document.getElementById('addModal').classList.remove('show'); }
+
+async function saveCompany() {
+  const nameVal   = document.getElementById('m_name').value.trim();
+  const driveVal  = document.getElementById('m_drive').value.trim();
+  const scriptVal = document.getElementById('m_script').value.trim();
+  if (!nameVal) return showToast('กรุณากรอกชื่อบริษัท','error');
+
+  const folderId = extractDriveFolderId(driveVal);
+
+  if (_selectedTenant) {
+    // Edit mode
+    const cfg = { ..._selectedTenant, companyName: nameVal, driveFolderId: folderId, appsScriptUrl: scriptVal||DEFAULT_SCRIPT_URL };
+    await fbSet(`${REGISTRY_PATH}/${_selectedTenant.id}`, cfg);
+    showToast('อัปเดตบริษัทสำเร็จ ✓','success');
+  } else {
+    // Add mode
+    let idVal = (document.getElementById('m_id').value||'').trim().toUpperCase();
+    if (!idVal) {
+      let max=1;
+      _tenants.forEach(t=>{ const m=(t.id||'').match(/T-0*(\d+)/); if(m) max=Math.max(max,parseInt(m[1])); });
+      idVal = 'T-' + String(max+1).padStart(3,'0');
+    }
+    if (!driveVal) return showToast('กรุณากรอกลิ้งค์ Google Drive','error');
+    const userVal = document.getElementById('m_user').value.trim() || 'admin';
+    const passVal = document.getElementById('m_pass').value.trim();
+    if (!passVal) return showToast('กรุณากรอกรหัสผ่าน Admin','error');
+
+    const fbPath = 'pca-' + idVal.toLowerCase().replace(/[^a-z0-9]/g,'-');
+    const cfg = { id:idVal, companyName:nameVal, driveFolderId:folderId, fbPath, appsScriptUrl:scriptVal||DEFAULT_SCRIPT_URL, createdAt:new Date().toISOString() };
+    await fbSet(`${REGISTRY_PATH}/${idVal}`, cfg);
+    // สร้าง admin user
+    const adminUser = { id:'U-'+uid(), username:userVal, displayName:'Admin', role:'แอดมิน', password:passVal, isActive:true, signature:'' };
+    await fbSet(`${fbPath}/users`, [adminUser]);
+    showToast(`สร้างบริษัท ${idVal} สำเร็จ ✓`,'success');
+  }
+
+  closeAddModal();
+  await loadAll();
+}
+
+// ── Detail ──
+async function showDetail(id) {
+  const t = _tenants.find(x=>x.id===id);
+  if (!t) return;
+  _selectedTenant = t;
+
+  const date = t.createdAt ? new Date(t.createdAt).toLocaleString('th-TH') : '—';
+  const driveLink = t.driveFolderId ? `<a href="https://drive.google.com/drive/folders/${t.driveFolderId}" target="_blank" style="color:var(--primary)">${t.driveFolderId}</a>` : '—';
+
+  document.getElementById('detailTitle').textContent = `📋 ${t.companyName || t.id}`;
+  document.getElementById('detailContent').innerHTML = `
+    <div class="detail-row"><div class="detail-label">รหัสบริษัท</div><div class="detail-val"><strong style="color:var(--primary)">${t.id}</strong></div></div>
+    <div class="detail-row"><div class="detail-label">ชื่อบริษัท</div><div class="detail-val">${t.companyName||'—'}</div></div>
+    <div class="detail-row"><div class="detail-label">วันที่สมัคร</div><div class="detail-val">${date}</div></div>
+    <div class="detail-row"><div class="detail-label">Firebase Path</div><div class="detail-val mono">${t.fbPath||'pca'}</div></div>
+    <div class="detail-row"><div class="detail-label">Drive Folder</div><div class="detail-val">${driveLink}</div></div>
+    <div class="detail-row"><div class="detail-label">Apps Script</div><div class="detail-val mono" style="font-size:11px">${(t.appsScriptUrl||DEFAULT_SCRIPT_URL).slice(0,60)}...</div></div>
+    <div class="detail-row"><div class="detail-label">จำนวน Users</div><div class="detail-val"><span class="badge badge-blue">${t._userCount} คน</span></div></div>`;
+
+  // แสดง users
+  const users = t._users || [];
+  document.getElementById('usersList').innerHTML = users.length ? users.map(u => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <div>
+        <span style="font-weight:700">@${u.username}</span>
+        <span style="color:var(--text2);margin-left:8px">${u.displayName||''}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="badge ${u.role==='ผู้อนุมัติ'?'badge-blue':u.role==='แอดมิน'?'badge-warn':'badge-green'}">${u.role}</span>
+        <span class="badge ${u.isActive?'badge-green':'badge-red'}">${u.isActive?'ใช้งาน':'ปิด'}</span>
+      </div>
+    </div>`).join('') : '<div style="color:var(--muted);font-size:13px;padding:12px 0">ยังไม่มี Users</div>';
+
+  document.getElementById('detailModal').classList.add('show');
+}
+
+// ── Reset Password ──
+function resetAdminPass() {
+  document.getElementById('resetModal').classList.add('show');
+  document.getElementById('rp_user').value = '';
+  document.getElementById('rp_pass').value = '';
+}
+
+async function confirmResetPass() {
+  const username = document.getElementById('rp_user').value.trim();
+  const newPass  = document.getElementById('rp_pass').value.trim();
+  if (!username || !newPass) return showToast('กรอกข้อมูลให้ครบ','error');
+  if (newPass.length < 4) return showToast('รหัสผ่านต้องมีอย่างน้อย 4 ตัว','error');
+
+  const t = _selectedTenant;
+  if (!t) return;
+  const fbPath = t.fbPath || 'pca';
+  const users  = t._users || [];
+  const idx    = users.findIndex(u => u.username === username);
+  if (idx < 0) return showToast(`ไม่พบ username: ${username}`, 'error');
+
+  users[idx].password = newPass;
+  await fbSet(`${fbPath}/users`, users);
+  showToast(`รีเซ็ตรหัสผ่าน @${username} สำเร็จ ✓`, 'success');
+  document.getElementById('resetModal').classList.remove('show');
+  await loadAll();
+}
+
+// ── Delete ──
+async function deleteCompany(id) {
+  if (!confirm(`ยืนยันลบบริษัท ${id}?\nข้อมูลทั้งหมดของบริษัทนี้จะถูกลบออกจาก Registry`)) return;
+  const url  = `${REGISTRY_FB_URL}/${REGISTRY_PATH}/${id}.json?auth=${REGISTRY_FB_SECRET}`;
+  await fetch(url, { method:'DELETE' });
+  showToast(`ลบบริษัท ${id} เรียบร้อย`,'success');
+  await loadAll();
+}
+
+// ── Helpers ──
+function extractDriveFolderId(input) {
+  if (!input) return '';
+  const m = input.match(/folders\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  return input.replace(/\s/g,'');
+}
+
+function uid() { return Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+
+let _toastTimer;
+function showToast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show' + (type ? ' '+type : '');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.className = '', 3500);
+}
+</script>
+</body>
+</html>
