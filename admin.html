@@ -236,6 +236,10 @@ button{border:none;padding:9px 16px;border-radius:9px;font-weight:700;cursor:poi
     <div class="modal-title" id="detailTitle">📋 รายละเอียดบริษัท</div>
     <div id="detailContent"></div>
     <div style="border-top:1px solid var(--border);margin:16px 0"></div>
+    <div class="modal-title" style="font-size:14px">🔧 กำหนดสิทธิ์การใช้งาน</div>
+    <div id="featuresPanel" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"></div>
+    <button onclick="saveFeatures()" class="btn-primary btn-sm">💾 บันทึกสิทธิ์</button>
+    <div style="border-top:1px solid var(--border);margin:16px 0"></div>
     <div class="modal-title" style="font-size:14px">👥 Users ในบริษัทนี้</div>
     <div id="usersList" style="max-height:240px;overflow-y:auto"></div>
     <div class="btn-row">
@@ -268,7 +272,7 @@ button{border:none;padding:9px 16px;border-radius:9px;font-weight:700;cursor:poi
 const REGISTRY_FB_URL    = 'https://petty-cash-ad50c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const REGISTRY_FB_SECRET = 'ywzydr8HCiZalfbUKJnx0ovbkFcCD7SXMPdyFKGA';
 const REGISTRY_PATH      = 'registry/tenants';
-const SUPER_ADMIN_PASS   = 'admin3909*'; // เปลี่ยนได้
+const SUPER_ADMIN_PASS   = 'petty@super2024'; // เปลี่ยนได้
 const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8o3DtWCHSqU1h2ZaIpthKCcbJlN_p_LBBDWr_i63zVqRF4fqVjUn_pRf1_trsRILwvw/exec';
 const DEFAULT_TENANT_T001 = {
   id: 'T-001', companyName: 'บริษัทตัวอย่าง จำกัด',
@@ -450,7 +454,19 @@ async function saveCompany() {
   await loadAll();
 }
 
-// ── Detail ──
+// ── Features Management ──
+const FEATURE_LIST = [
+  { key:'dashboard',    label:'📊 Dashboard' },
+  { key:'request',      label:'📝 บันทึกรายการ' },
+  { key:'transactions', label:'📋 รายการทั้งหมด' },
+  { key:'funds',        label:'💼 วงเงิน' },
+  { key:'cats',         label:'🏷️ หมวดค่าใช้จ่าย' },
+  { key:'cert',         label:'📄 ใบรับรอง' },
+  { key:'users',        label:'👤 ผู้ใช้งาน' },
+  { key:'settings',     label:'⚙️ ตั้งค่า' },
+  { key:'exportExcel',  label:'📊 Export Excel' },
+];
+
 async function showDetail(id) {
   const t = _tenants.find(x=>x.id===id);
   if (!t) return;
@@ -466,10 +482,20 @@ async function showDetail(id) {
     <div class="detail-row"><div class="detail-label">วันที่สมัคร</div><div class="detail-val">${date}</div></div>
     <div class="detail-row"><div class="detail-label">Firebase Path</div><div class="detail-val mono">${t.fbPath||'pca'}</div></div>
     <div class="detail-row"><div class="detail-label">Drive Folder</div><div class="detail-val">${driveLink}</div></div>
-    <div class="detail-row"><div class="detail-label">Apps Script</div><div class="detail-val mono" style="font-size:11px">${(t.appsScriptUrl||DEFAULT_SCRIPT_URL).slice(0,60)}...</div></div>
     <div class="detail-row"><div class="detail-label">จำนวน Users</div><div class="detail-val"><span class="badge badge-blue">${t._userCount} คน</span></div></div>`;
 
-  // แสดง users
+  // Features checkboxes
+  const features = t.features || {};
+  document.getElementById('featuresPanel').innerHTML = FEATURE_LIST.map(f => `
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg2)">
+      <input type="checkbox" id="feat_${f.key}" ${features[f.key] !== false && !(f.key==='exportExcel' && features[f.key]===undefined) || features[f.key]===true ? 'checked' : ''}>
+      ${f.label}
+    </label>`).join('');
+  // Export Excel ซ่อน default
+  const exportCb = document.getElementById('feat_exportExcel');
+  if (exportCb && features.exportExcel === undefined) exportCb.checked = false;
+
+  // Users
   const users = t._users || [];
   document.getElementById('usersList').innerHTML = users.length ? users.map(u => `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
@@ -484,6 +510,20 @@ async function showDetail(id) {
     </div>`).join('') : '<div style="color:var(--muted);font-size:13px;padding:12px 0">ยังไม่มี Users</div>';
 
   document.getElementById('detailModal').classList.add('show');
+}
+
+async function saveFeatures() {
+  const t = _selectedTenant;
+  if (!t) return;
+  const features = {};
+  FEATURE_LIST.forEach(f => {
+    features[f.key] = document.getElementById('feat_' + f.key)?.checked !== false;
+  });
+  // บันทึกลง registry
+  const cfg = { ...t, features };
+  await fbSet(`${REGISTRY_PATH}/${t.id}`, cfg);
+  showToast(`บันทึกสิทธิ์บริษัท ${t.id} สำเร็จ ✓`, 'success');
+  await loadAll();
 }
 
 // ── Reset Password ──
