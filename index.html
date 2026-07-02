@@ -75,7 +75,7 @@ body{font-family:'Noto Sans Thai',Tahoma,sans-serif;background:var(--bg);color:v
   .nav{gap:3px;padding:4px}
   .nav button{font-size:clamp(11px,3.8vw,15px);padding:6px 8px}
   .company-name{font-size:clamp(15px,4vw,20px)}
-  table{display:block;overflow-x:auto;white-space:nowrap}
+  table{white-space:nowrap}
   .header-right button,.header-right span{font-size:clamp(14px,3vw,20px)!important;padding:5px 8px}
   .badge{font-size:clamp(14px,3vw,20px)}
   h1,h2,.section-title{font-size:clamp(15px,4.5vw,20px)}
@@ -142,10 +142,11 @@ button:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
   box-shadow:0 2px 12px rgba(59,130,246,.4)}
 
 /* ── TABLE ── */
-.table-wrap{overflow-x:auto;margin-top:10px}
+.table-wrap{overflow-x:auto;margin-top:10px;max-width:100%;-webkit-overflow-scrolling:touch}
+.table-wrap table{width:max-content;min-width:100%}
 table{width:100%;border-collapse:collapse;min-width:720px}
 th{background:var(--bg2);color:var(--text2);font-size:17px;font-weight:700;letter-spacing:.03em;
-  text-transform:uppercase;padding:10px 14px;text-align:left;border-bottom:2px solid var(--border)}
+  text-transform:uppercase;padding:10px 14px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap}
 td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:17px;vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(59,130,246,.04)}
@@ -332,6 +333,8 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
     <div class="logo">💰</div>
     <div class="screen-title">Petty Cash</div>
     <div class="screen-sub">ระบบเงินสดย่อย<br>กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ</div>
+    <label>รหัสบริษัท (Company Code)</label>
+    <input id="loginTenant" placeholder="เช่น T-001" autocomplete="organization" onkeydown="if(event.key==='Enter')login()" style="letter-spacing:.1em;text-transform:uppercase">
     <label>ชื่อผู้ใช้ (Username)</label>
     <input id="loginUser" placeholder="Username" autocomplete="username">
     <label>รหัสผ่าน</label>
@@ -666,7 +669,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
           <thead><tr>
             <th>วันที่</th><th>เลขที่</th><th>หมวด</th><th>รายละเอียด</th>
             <th>พนักงาน</th><th>ยอดสุทธิ</th><th>สถานะ</th><th>ได้รับเอกสาร</th>
-            <th>ไฟล์แนบ</th><th>เอกสาร</th><th>จัดการ</th>
+            <th>ไฟล์แนบ</th><th>เอกสาร</th><th style="min-width:108px;max-width:130px;text-align:center">จัดการ</th>
           </tr></thead>
           <tbody id="txBody"></tbody>
         </table>
@@ -743,6 +746,36 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
     <!-- ── Settings ── -->
     <div id="settingsTab" class="card hidden">
       <div class="section-title">⚙️ ตั้งค่า</div>
+
+      <!-- Super Admin: จัดการบริษัท (tenant) -->
+      <div id="tenantMgmtSection" class="hidden">
+        <div style="background:var(--info-bg);border:1.5px solid rgba(29,78,216,.2);border-radius:14px;padding:18px;margin-bottom:18px">
+          <div style="font-size:15px;font-weight:700;color:var(--info);margin-bottom:14px">🏢 จัดการบริษัท (Super Admin)</div>
+          <div class="row2">
+            <div><label>รหัสบริษัท (เช่น T-002)</label><input id="tn_id" placeholder="T-002" style="text-transform:uppercase"></div>
+            <div><label>ชื่อบริษัท</label><input id="tn_name" placeholder="บริษัท XYZ จำกัด"></div>
+          </div>
+          <div class="row2">
+            <div><label>Firebase URL</label><input id="tn_fbUrl" placeholder="https://xxx-rtdb.asia-southeast1.firebasedatabase.app"></div>
+            <div><label>Firebase Secret</label><input id="tn_fbSecret" placeholder="secret key"></div>
+          </div>
+          <div class="row2">
+            <div><label>Firebase API Key</label><input id="tn_fbApiKey" placeholder="AIzaSy..."></div>
+            <div><label>Firebase Project ID</label><input id="tn_fbProjectId" placeholder="my-project-id"></div>
+          </div>
+          <div class="row2">
+            <div><label>Apps Script URL</label><input id="tn_appsScript" placeholder="https://script.google.com/macros/s/..."></div>
+            <div><label>Drive Folder ID</label><input id="tn_folderId" placeholder="1ABC..."></div>
+          </div>
+          <div><label>Firebase Path Prefix</label><input id="tn_fbPath" placeholder="pca" value="pca"></div>
+          <div style="display:flex;gap:8px;margin-top:14px">
+            <button onclick="saveTenantAdmin()" style="background:var(--info);color:#fff;border:none;padding:10px 20px;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit">💾 บันทึกบริษัท</button>
+            <button onclick="loadTenantAdmin()" class="ghost sm">🔄 โหลดรายชื่อบริษัท</button>
+          </div>
+          <div id="tenantList" style="margin-top:14px"></div>
+        </div>
+      </div>
+
       <div class="row2">
         <div><label>ชื่อบริษัท</label><input id="s_companyName"></div>
         <div><label>ผู้ดูแลเงินสดย่อย</label><input id="s_custodian"></div>
@@ -1047,6 +1080,62 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
 // ══════════════════════════════════════════════════════
 //  Petty Cash — ระบบเงินสดย่อย (ข้อมูลเก็บใน localStorage)
 // ══════════════════════════════════════════════════════
+// ── REGISTRY (Firebase หลักที่เก็บ tenant list) ──
+const REGISTRY_FB_URL    = 'https://petty-cash-ad50c-default-rtdb.asia-southeast1.firebasedatabase.app';
+const REGISTRY_FB_SECRET = 'ywzydr8HCiZalfbUKJnx0ovbkFcCD7SXMPdyFKGA';
+const REGISTRY_PATH      = 'registry/tenants';
+// tenant ของบริษัทที่ 1 (ปัจจุบัน)
+const DEFAULT_TENANT_T001 = {
+  id:            'T-001',
+  companyName:   'บริษัทตัวอย่าง จำกัด',
+  fbUrl:         'https://petty-cash-ad50c-default-rtdb.asia-southeast1.firebasedatabase.app',
+  fbSecret:      'ywzydr8HCiZalfbUKJnx0ovbkFcCD7SXMPdyFKGA',
+  fbApiKey:      'AIzaSyBpZhlNJ0S4cPGk99OFwKStHtT7QWsaIkA',
+  fbProjectId:   'petty-cash-ad50c',
+  appsScriptUrl: 'https://script.google.com/macros/s/AKfycby8o3DtWCHSqU1h2ZaIpthKCcbJlN_p_LBBDWr_i63zVqRF4fqVjUn_pRf1_trsRILwvw/exec',
+  driveFolderId: '1ZHm3OvcSrhVYBOPbT-BYu-9sJaw16QC_',
+  fbPath:        'pca',
+};
+let _currentTenant = null; // tenant ที่ login อยู่
+
+// ── ดึง tenant config จาก Registry ──
+async function fetchTenantConfig(tenantId) {
+  const id = tenantId.trim().toUpperCase();
+  // T-001 → ใช้ default config (ไม่ต้องดึงจาก registry)
+  if (id === 'T-001') return DEFAULT_TENANT_T001;
+  try {
+    const url  = `${REGISTRY_FB_URL}/${REGISTRY_PATH}/${id}.json?auth=${REGISTRY_FB_SECRET}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (!data || data.error) return null;
+    return { id, ...data };
+  } catch(e) { return null; }
+}
+
+// ── เขียน tenant config ลง Registry ──
+async function saveTenantConfig(cfg) {
+  const url  = `${REGISTRY_FB_URL}/${REGISTRY_PATH}/${cfg.id}.json?auth=${REGISTRY_FB_SECRET}`;
+  await fetch(url, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(cfg),
+  });
+}
+
+// ── ดึง tenant list ทั้งหมด (สำหรับ super admin) ──
+async function fetchAllTenants() {
+  try {
+    const url  = `${REGISTRY_FB_URL}/${REGISTRY_PATH}.json?auth=${REGISTRY_FB_SECRET}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (!data) return [DEFAULT_TENANT_T001];
+    const list = Object.values(data).filter(Boolean);
+    // ถ้ายังไม่มี T-001 ใน registry ให้เพิ่มเข้าไป
+    if (!list.find(t=>t.id==='T-001')) list.unshift(DEFAULT_TENANT_T001);
+    return list;
+  } catch(e) { return [DEFAULT_TENANT_T001]; }
+}
+
 const CFG_KEY  = 'pca_cfg';
 const LS_TXN   = 'pca_txn';
 const LS_USERS = 'pca_users';
@@ -1220,18 +1309,35 @@ async function submitRegister() {
 }
 
 async function login() {
-  const username = document.getElementById('loginUser').value.trim();
-  const password = document.getElementById('loginPass').value.trim();
-  if (!username || !password) return showToast('กรอกข้อมูลไม่ครบ','error');
+  const tenantCode = (document.getElementById('loginTenant')?.value||'').trim().toUpperCase() || 'T-001';
+  const username   = document.getElementById('loginUser').value.trim();
+  const password   = document.getElementById('loginPass').value.trim();
+  if (!tenantCode || !username || !password) return showToast('กรอกข้อมูลไม่ครบ','error');
   const btn = document.getElementById('loginBtn');
   if (btn) { btn.disabled=true; btn.innerHTML='⏳ กำลังโหลด...'; }
-  // init Firebase ก่อน
-  if (!_db) { initFirebase(); await new Promise(r=>setTimeout(r,1200)); }
-  const basePath = 'pca/';
-  // ดึง users จาก Firebase ก่อนเพื่อ login — fallback pca/users ถ้าไม่เจอ
-  let fbUsers = await fbGet('pca/users');
-  if (fbUsers) { S.users = fbUsers; lsSet(LS_USERS, fbUsers); }
-  else { S.users = lsGet(LS_USERS, DEFAULT_USERS); }
+
+  // 1) ดึง tenant config จาก Registry
+  if (btn) btn.innerHTML='⏳ ตรวจสอบรหัสบริษัท...';
+  const tenant = await fetchTenantConfig(tenantCode);
+  if (!tenant) {
+    if (btn) { btn.disabled=false; btn.innerHTML='เข้าสู่ระบบ'; }
+    return showToast('ไม่พบรหัสบริษัท: ' + tenantCode,'error');
+  }
+  _currentTenant = tenant;
+
+  // 2) Init Firebase ด้วย config ของ tenant นี้
+  if (btn) btn.innerHTML='⏳ เชื่อมต่อระบบ...';
+  _db = null; // reset firebase
+  initFirebaseWithConfig(tenant);
+  await new Promise(r=>setTimeout(r,1200));
+
+  // 3) Login ด้วย users ของ tenant นี้
+  const fbPath = tenant.fbPath || 'pca';
+  let fbUsers  = await fbGetTenant(`${fbPath}/users`, tenant);
+  const toArr  = v => !v ? [] : (Array.isArray(v) ? v : Object.values(v)).filter(Boolean);
+  S.users = toArr(fbUsers).length ? toArr(fbUsers) : lsGet(LS_USERS, DEFAULT_USERS);
+  lsSet(LS_USERS, S.users);
+
   const matched = S.users.find(u => u.username===username && u.password===password && u.isActive);
   if (!matched) {
     if (btn) { btn.disabled=false; btn.innerHTML='เข้าสู่ระบบ'; }
@@ -1240,7 +1346,6 @@ async function login() {
   S.user = matched;
   window._alertShown = false;
   show('appView');
-  // โหลดข้อมูลทั้งหมดจาก Firebase (เป็น source of truth เสมอ)
   await loadAllFromFirebase();
   render();
   updateCatSelector();
@@ -1461,22 +1566,39 @@ let _fbListeners = {};
 function initFirebase() {
   const cfg = getCfg();
   if (!cfg.fbUrl || !cfg.fbApiKey || !cfg.fbProjectId) return;
-  // รอให้ Firebase module โหลดเสร็จ
+  initFirebaseWithConfig({
+    fbUrl: cfg.fbUrl, fbApiKey: cfg.fbApiKey, fbProjectId: cfg.fbProjectId
+  });
+}
+
+function initFirebaseWithConfig(tenant) {
+  if (!tenant?.fbUrl || !tenant?.fbApiKey || !tenant?.fbProjectId) return;
   const tryInit = () => {
     const m = window._fbModules;
     if (!m) { setTimeout(tryInit, 200); return; }
     try {
       _fb = m.initializeApp({
-        apiKey:      cfg.fbApiKey,
-        databaseURL: cfg.fbUrl,
-        projectId:   cfg.fbProjectId,
+        apiKey:      tenant.fbApiKey,
+        databaseURL: tenant.fbUrl,
+        projectId:   tenant.fbProjectId,
       }, 'pca-' + Date.now());
       _db = m.getDatabase(_fb);
-      showToast('✓ Firebase เชื่อมต่อแล้ว','success');
+      // อัปเดต APPS_SCRIPT_URL ให้ตรงกับ tenant
+      if (tenant.appsScriptUrl) window._tenantAppsScriptUrl = tenant.appsScriptUrl;
+      showToast('✓ Firebase เชื่อมต่อแล้ว (' + (tenant.id||'') + ')','success');
       updateFirebaseBadge(true);
     } catch(e) { console.warn('Firebase init:', e.message); }
   };
   tryInit();
+}
+
+// fbGet สำหรับ tenant ที่ระบุ (ไม่ต้องใช้ _db)
+async function fbGetTenant(path, tenant) {
+  try {
+    const url  = `${tenant.fbUrl}/${path}.json?auth=${tenant.fbSecret}`;
+    const resp = await fetch(url);
+    return await resp.json();
+  } catch(e) { return null; }
 }
 
 function updateFirebaseBadge(ok) {
@@ -1498,9 +1620,10 @@ async function fbGet(path) {
 
 // เขียนข้อมูลไป Firebase
 async function fbSet(path, data) {
-  // เขียนผ่าน Apps Script proxy (ปลอดภัย — Firebase Rules ปิด write จากภายนอก)
+  // ใช้ Apps Script ของ tenant ที่ login อยู่
+  const scriptUrl = window._tenantAppsScriptUrl || APPS_SCRIPT_URL;
   try {
-    const resp = await fetch(APPS_SCRIPT_URL, {
+    const resp = await fetch(scriptUrl, {
       method: 'POST',
       body: JSON.stringify({ action: 'firebaseSet', path, data })
     });
@@ -1719,6 +1842,14 @@ function applyPerms() {
   const saveFundBtn = document.querySelector('button[onclick="saveFund()"]');
   if(saveFundBtn) saveFundBtn.disabled = isReq;
 
+  // ── Tenant Management: เฉพาะ super admin (แอดมิน + tenant T-001) ──
+  const isSuperAdmin = isAdm && _currentTenant?.id === 'T-001';
+  const tenantSec = document.getElementById('tenantMgmtSection');
+  if (tenantSec) {
+    tenantSec.classList.toggle('hidden', !isSuperAdmin);
+    if (isSuperAdmin) loadTenantAdmin();
+  }
+
   // ── Role badge ──
   const rn = document.getElementById('roleNote');
   if(rn) {
@@ -1813,18 +1944,18 @@ function renderTxns() {
         </div>`;
         return `<a href="${t.attachmentUrl}" target="_blank" style="color:var(--primary-g);font-weight:600;font-size:12px">📎 ${name}</a>`;
       })() : '-'}</td>
-      <td>${t.receipt==='ใบรับรองแทนใบเสร็จรับเงิน'?
-        `<button class="ghost sm" onclick='dlCert(${JSON.stringify(JSON.stringify(t))})'>📄 ดาวน์โหลด</button>`:
+      <td style="min-width:130px;padding-right:18px">${t.receipt==='ใบรับรองแทนใบเสร็จรับเงิน'?
+        `<button class="ghost sm" onclick='dlCert(${JSON.stringify(JSON.stringify(t))})' style="white-space:nowrap">📄 ดาวน์โหลด</button>`:
         (t.receipt||'-')}</td>
-      <td style="min-width:90px;max-width:110px">
+      <td style="min-width:108px;max-width:130px;padding:8px 6px">
         <div style="display:flex;flex-direction:column;gap:5px">
         ${t.status==='รออนุมัติ' ? `
-        ${(S.user?.role==='ผู้อนุมัติ' || S.user?.role==='แอดมิน' || t.requester===S.user?.displayName) ? `<button class="ghost sm" onclick="editTx('${t.id}')" style="white-space:nowrap">✏️ แก้ไข</button>` : ''}
+        ${(S.user?.role==='ผู้อนุมัติ' || S.user?.role==='แอดมิน' || t.requester===S.user?.displayName) ? `<button class="ghost sm" onclick="editTx('${t.id}')" style="white-space:nowrap;width:100%;text-align:center">✏️ แก้ไข</button>` : ''}
         ${(S.user?.role==='ผู้อนุมัติ') ? `
-        <button class="app-btn sky sm" onclick="approveWithOptions('${t.id}')" style="white-space:nowrap">✓ อนุมัติ</button>
-        <button class="rej-btn danger sm" onclick="updateStatus('${t.id}','ไม่อนุมัติ')" style="white-space:nowrap">✗ ไม่อนุมัติ</button>
+        <button class="app-btn sky sm" onclick="approveWithOptions('${t.id}')" style="white-space:nowrap;width:100%;text-align:center">✓ อนุมัติ</button>
+        <button class="rej-btn danger sm" onclick="updateStatus('${t.id}','ไม่อนุมัติ')" style="white-space:nowrap;width:100%;text-align:center">✗ ไม่อนุมัติ</button>
         ` : ''}
-        ` : `<span style="font-size:12px;color:var(--muted)">${t.status==='อนุมัติ'?'✓ อนุมัติแล้ว':'✗ ไม่อนุมัติ'}</span>`}
+        ` : `<span style="font-size:12px;color:var(--muted);white-space:nowrap">${t.status==='อนุมัติ'?'✓ อนุมัติแล้ว':'✗ ไม่อนุมัติ'}</span>`}
         </div>
       </td>
     </tr>`).join('') :
@@ -2774,6 +2905,66 @@ function populateResetUserDropdown() {
   if (!sel) return;
   sel.innerHTML = '<option value="">— เลือกผู้ใช้ —</option>' +
     S.users.map(u=>`<option value="${u.id}">${u.displayName||u.username} (${u.role})</option>`).join('');
+}
+
+// ── TENANT ADMIN FUNCTIONS ──
+async function saveTenantAdmin() {
+  const id = (document.getElementById('tn_id')?.value||'').trim().toUpperCase();
+  if (!id) return showToast('กรุณากรอกรหัสบริษัท','error');
+  const cfg = {
+    id,
+    companyName:   document.getElementById('tn_name')?.value.trim() || '',
+    fbUrl:         document.getElementById('tn_fbUrl')?.value.trim() || '',
+    fbSecret:      document.getElementById('tn_fbSecret')?.value.trim() || '',
+    fbApiKey:      document.getElementById('tn_fbApiKey')?.value.trim() || '',
+    fbProjectId:   document.getElementById('tn_fbProjectId')?.value.trim() || '',
+    appsScriptUrl: document.getElementById('tn_appsScript')?.value.trim() || '',
+    driveFolderId: document.getElementById('tn_folderId')?.value.trim() || '',
+    fbPath:        document.getElementById('tn_fbPath')?.value.trim() || 'pca',
+    createdAt:     new Date().toISOString(),
+  };
+  if (!cfg.fbUrl || !cfg.fbSecret) return showToast('กรุณากรอก Firebase URL และ Secret','error');
+  await saveTenantConfig(cfg);
+  showToast(`บันทึกบริษัท ${id} เรียบร้อย ✓`, 'success');
+  // ล้างฟอร์ม
+  ['tn_id','tn_name','tn_fbUrl','tn_fbSecret','tn_fbApiKey','tn_fbProjectId','tn_appsScript','tn_folderId'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('tn_fbPath').value = 'pca';
+  await loadTenantAdmin();
+}
+
+async function loadTenantAdmin() {
+  const listEl = document.getElementById('tenantList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="color:var(--muted);font-size:13px">⏳ กำลังโหลด...</div>';
+  const tenants = await fetchAllTenants();
+  listEl.innerHTML = `
+    <div style="font-weight:700;font-size:13px;margin-bottom:8px;color:var(--text2)">บริษัทในระบบ (${tenants.length}):</div>
+    ${tenants.map(t=>`
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div>
+          <span style="font-weight:700;color:var(--primary)">${t.id}</span>
+          <span style="color:var(--text2);margin-left:10px">${t.companyName||'-'}</span>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${t.fbUrl||'-'}</div>
+        </div>
+        <button onclick="editTenantAdmin('${t.id}')" class="ghost sm">✏️ แก้ไข</button>
+      </div>`).join('')}`;
+}
+
+async function editTenantAdmin(id) {
+  const tenant = await fetchTenantConfig(id);
+  if (!tenant) return showToast('ไม่พบบริษัทนี้','error');
+  document.getElementById('tn_id').value          = tenant.id||'';
+  document.getElementById('tn_name').value        = tenant.companyName||'';
+  document.getElementById('tn_fbUrl').value       = tenant.fbUrl||'';
+  document.getElementById('tn_fbSecret').value    = tenant.fbSecret||'';
+  document.getElementById('tn_fbApiKey').value    = tenant.fbApiKey||'';
+  document.getElementById('tn_fbProjectId').value = tenant.fbProjectId||'';
+  document.getElementById('tn_appsScript').value  = tenant.appsScriptUrl||'';
+  document.getElementById('tn_folderId').value    = tenant.driveFolderId||'';
+  document.getElementById('tn_fbPath').value      = tenant.fbPath||'pca';
+  document.querySelector('#tenantMgmtSection').scrollIntoView({behavior:'smooth'});
 }
 
 async function saveSettings(){
