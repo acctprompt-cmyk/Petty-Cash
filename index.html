@@ -1563,11 +1563,11 @@ function initDriveAuth() {
   }
 }
 
-function _setupDriveAuth() {
-  // ลอง restore token จาก localStorage (คงอยู่แม้ออกจากระบบ) — ผูกกับ tenant
-  const tenantId = _currentTenant?.id || 'T-001';
-  const saved    = localStorage.getItem('pca_drive_token_' + tenantId);
-  const exp      = parseInt(localStorage.getItem('pca_drive_exp_' + tenantId) || '0');
+async function _setupDriveAuth() {
+  // ลอง restore token จาก localStorage — ผูกกับ tenant
+  const tenantId   = _currentTenant?.id || 'T-001';
+  const saved      = localStorage.getItem('pca_drive_token_' + tenantId);
+  const exp        = parseInt(localStorage.getItem('pca_drive_exp_' + tenantId) || '0');
   const savedEmail = localStorage.getItem('pca_drive_email_' + tenantId) || '';
   if (saved && Date.now() < exp) {
     _driveToken    = saved;
@@ -1575,6 +1575,16 @@ function _setupDriveAuth() {
     updateDriveBadge(true, savedEmail);
     return;
   }
+  // ถ้า token หมดหรือว่าง — ดึง email ที่ผูกไว้จาก Firebase แสดงให้รู้ว่าต้อง login Google account ใด
+  try {
+    const fbPath = (_currentTenant?.fbPath || 'pca');
+    const driveConfig = await fbGet(fbPath + '/driveConfig');
+    if (driveConfig?.email) {
+      localStorage.setItem('pca_drive_email_' + tenantId, driveConfig.email);
+      updateDriveBadge(false, driveConfig.email);
+      return;
+    }
+  } catch(e) {}
   updateDriveBadge(false);
 }
 
@@ -1613,10 +1623,17 @@ function requestDriveToken() {
           return;
         }
 
-        // บันทึกลง localStorage ผูกกับ tenant
+        // บันทึกลง localStorage + Firebase (ไม่หายแม้ clear cache)
         localStorage.setItem('pca_drive_token_' + tenantId, _driveToken);
         localStorage.setItem('pca_drive_exp_'   + tenantId, _driveTokenExp.toString());
         localStorage.setItem('pca_drive_email_' + tenantId, userEmail);
+        // บันทึก email ลง Firebase เพื่อ restore ได้แม้ clear cache
+        const fbPath = (_currentTenant?.fbPath || 'pca');
+        fbSet(fbPath + '/driveConfig', {
+          email: userEmail,
+          boundAt: new Date().toISOString(),
+          tenantId,
+        }).catch(()=>{});
         updateDriveBadge(true, userEmail);
         resolve(_driveToken);
       },
@@ -1640,11 +1657,12 @@ function updateDriveBadge(ok, email='') {
     b.onclick = null;
     b.title = email ? 'เชื่อมกับ ' + email : '';
   } else {
-    b.textContent = '☁️ เชื่อม Drive';
+    const hint = email ? ` (${email.split('@')[0]})` : '';
+    b.textContent = '☁️ เชื่อม Drive' + hint;
     b.style.color = 'var(--warn)';
     b.style.cursor = 'pointer';
+    b.title = email ? `กรุณา Login ด้วย ${email}` : 'คลิกเพื่อ Login Google Drive';
     b.onclick = () => requestDriveToken().catch(e => showToast('Login Google ไม่สำเร็จ: '+e.message,'error'));
-    b.title = '';
   }
   b.style.display = 'inline-block';
 }
@@ -2427,17 +2445,24 @@ function addLineItem(desc='', cat='', amt='') {
       <button type="button" onclick="removeLineItem(${id})"
         style="width:32px;height:32px;border-radius:8px;border:1px solid var(--danger);background:var(--danger-bg);color:var(--danger);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
-    <!-- Category autocomplete input -->
-    <div style="position:relative;margin-bottom:4px">
-      <input class="li-cat-input" placeholder="🏷️ พิมพ์หมวด หรือเพิ่มใหม่..." value="${cat}"
-        autocomplete="off"
-        oninput="showCatSuggest(${id},this.value)"
-        onfocus="showCatSuggest(${id},this.value)"
-        onblur="setTimeout(()=>hideCatSuggest(${id}),200)"
-        onkeydown="catInputKey(event,${id})"
-        style="width:100%;padding:8px 12px;border:1.5px solid var(--border2);border-radius:8px;font-size:14px;background:var(--surface);font-family:inherit">
+    <!-- Category: dropdown + พิมพ์เพิ่มใหม่ -->
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+      <select class="li-cat-select" onchange="onCatSelectChange(${id},this.value)"
+        style="min-width:160px;padding:7px 10px;border:1.5px solid var(--border2);border-radius:8px;font-size:14px;background:var(--surface);font-family:inherit">
+        <option value="">— เลือกหมวด —</option>
+        ${S.cats.filter(Boolean).map(c=>`<option value="${c.name}" ${c.name===cat?'selected':''}>${c.icon||''} ${c.name}</option>`).join('')}
+      </select>
+      <div style="position:relative;flex:1;min-width:140px">
+        <input class="li-cat-input" placeholder="✏️ พิมพ์เพิ่มหมวดใหม่..." value=""
+          autocomplete="off"
+          oninput="showCatSuggest(${id},this.value)"
+          onfocus="showCatSuggest(${id},this.value)"
+          onblur="setTimeout(()=>hideCatSuggest(${id}),200)"
+          onkeydown="catInputKey(event,${id})"
+          style="width:100%;padding:7px 12px;border:1.5px solid var(--border2);border-radius:8px;font-size:14px;background:var(--surface);font-family:inherit">
+        <div class="li-cat-suggest" id="li_suggest_${id}" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1.5px solid var(--border2);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:999;max-height:220px;overflow-y:auto;margin-top:2px"></div>
+      </div>
       <input type="hidden" class="li-cat" value="${cat}">
-      <div class="li-cat-suggest" id="li_suggest_${id}" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1.5px solid var(--border2);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:999;max-height:220px;overflow-y:auto;margin-top:2px"></div>
     </div>
     <!-- chips -->
     <div class="li-chips" style="display:flex;flex-wrap:wrap;gap:5px"></div>`;
@@ -2471,13 +2496,25 @@ function selectCatChip(id, name) {
   if (!row) return;
   const hid = row.querySelector('.li-cat');
   const inp = row.querySelector('.li-cat-input');
+  const sel = row.querySelector('.li-cat-select');
   const newVal = (hid?.value === name) ? '' : name;
   if (hid) hid.value = newVal;
-  if (inp) inp.value = newVal;
+  if (inp) inp.value = '';
+  if (sel) sel.value = newVal;
   renderLineChips(id, newVal);
 }
 
 function selectLineChip(id, name) { selectCatChip(id, name); }
+
+function onCatSelectChange(id, name) {
+  const row = document.getElementById(`li_${id}`);
+  if (!row) return;
+  const hid = row.querySelector('.li-cat');
+  const inp = row.querySelector('.li-cat-input');
+  if (hid) hid.value = name;
+  if (inp) inp.value = ''; // ล้าง input เพื่อไม่ให้สับสน
+  renderLineChips(id, name);
+}
 
 function syncLineChips(id) { renderLineChips(id); }
 
@@ -2516,8 +2553,10 @@ function selectCatSuggest(id, name) {
   if (!row) return;
   const inp = row.querySelector('.li-cat-input');
   const hid = row.querySelector('.li-cat');
-  if (inp) inp.value = name;
+  const sel = row.querySelector('.li-cat-select');
+  if (inp) inp.value = '';
   if (hid) hid.value = name;
+  if (sel) sel.value = name; // sync dropdown
   hideCatSuggest(id);
   renderLineChips(id, name);
 }
