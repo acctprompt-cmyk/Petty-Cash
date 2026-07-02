@@ -2445,24 +2445,19 @@ function addLineItem(desc='', cat='', amt='') {
       <button type="button" onclick="removeLineItem(${id})"
         style="width:32px;height:32px;border-radius:8px;border:1px solid var(--danger);background:var(--danger-bg);color:var(--danger);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
-    <!-- Category: dropdown + พิมพ์เพิ่มใหม่ -->
-    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
-      <select class="li-cat-select" onchange="onCatSelectChange(${id},this.value)"
-        style="min-width:160px;padding:7px 10px;border:1.5px solid var(--border2);border-radius:8px;font-size:14px;background:var(--surface);font-family:inherit">
-        <option value="">— เลือกหมวด —</option>
-        ${S.cats.filter(Boolean).map(c=>`<option value="${c.name}" ${c.name===cat?'selected':''}>${c.icon||''} ${c.name}</option>`).join('')}
-      </select>
-      <div style="position:relative;flex:1;min-width:140px">
-        <input class="li-cat-input" placeholder="✏️ พิมพ์เพิ่มหมวดใหม่..." value=""
-          autocomplete="off"
-          oninput="showCatSuggest(${id},this.value)"
-          onfocus="showCatSuggest(${id},this.value)"
-          onblur="setTimeout(()=>hideCatSuggest(${id}),200)"
-          onkeydown="catInputKey(event,${id})"
-          style="width:100%;padding:7px 12px;border:1.5px solid var(--border2);border-radius:8px;font-size:14px;background:var(--surface);font-family:inherit">
-        <div class="li-cat-suggest" id="li_suggest_${id}" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1.5px solid var(--border2);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:999;max-height:220px;overflow-y:auto;margin-top:2px"></div>
-      </div>
+    <!-- Category: combobox (พิมพ์ + เลือก รวมในช่องเดียว) -->
+    <div style="position:relative;margin-bottom:4px">
+      <input class="li-cat-input" placeholder="🏷️ เลือกหรือพิมพ์หมวดค่าใช้จ่าย..." value="${cat}"
+        autocomplete="off"
+        oninput="showCatSuggest(${id},this.value)"
+        onfocus="showCatSuggest(${id},this.value)"
+        onblur="setTimeout(()=>hideCatSuggest(${id}),200)"
+        onkeydown="catInputKey(event,${id})"
+        style="width:100%;padding:8px 36px 8px 12px;border:1.5px solid var(--border2);border-radius:8px;font-size:14px;background:var(--surface);font-family:inherit">
+      <span onclick="showCatSuggest(${id},'')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);font-size:14px;user-select:none">▾</span>
       <input type="hidden" class="li-cat" value="${cat}">
+      <select class="li-cat-select" style="display:none"></select>
+      <div class="li-cat-suggest" id="li_suggest_${id}" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1.5px solid var(--border2);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:999;max-height:220px;overflow-y:auto;margin-top:2px"></div>
     </div>
     <!-- chips -->
     <div class="li-chips" style="display:flex;flex-wrap:wrap;gap:5px"></div>`;
@@ -2477,13 +2472,14 @@ function renderLineChips(id, selected) {
   const hid = row.querySelector('.li-cat');
   const inp = row.querySelector('.li-cat-input');
   const cur = selected !== undefined ? selected : (hid?.value||'');
-  // sync input
+  // sync hidden และ input
+  if (hid && selected !== undefined) hid.value = cur;
   if (inp && selected !== undefined) inp.value = cur;
   const chips = row.querySelector('.li-chips');
   if (!chips) return;
   chips.innerHTML = S.cats.filter(Boolean).map(c => {
     const active = c.name === cur;
-    return `<button type="button" onclick="selectCatChip(${id},'${c.name.replace(/'/g,"\\'")}')" style="
+    return `<button type="button" onclick="selectLineCatChip(${id},'${c.name.replace(/'/g,"\\'")}')" style="
       padding:4px 11px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;
       border:1.5px solid ${c.color||'var(--primary)'};transition:all .15s;
       background:${active?(c.color||'var(--primary)'):'transparent'};
@@ -2491,20 +2487,18 @@ function renderLineChips(id, selected) {
   }).join('');
 }
 
-function selectCatChip(id, name) {
+function selectLineCatChip(id, name) {
   const row = document.getElementById(`li_${id}`);
   if (!row) return;
   const hid = row.querySelector('.li-cat');
   const inp = row.querySelector('.li-cat-input');
-  const sel = row.querySelector('.li-cat-select');
   const newVal = (hid?.value === name) ? '' : name;
   if (hid) hid.value = newVal;
-  if (inp) inp.value = '';
-  if (sel) sel.value = newVal;
+  if (inp) inp.value = newVal;
   renderLineChips(id, newVal);
 }
 
-function selectLineChip(id, name) { selectCatChip(id, name); }
+function selectLineChip(id, name) { selectLineCatChip(id, name); }
 
 function onCatSelectChange(id, name) {
   const row = document.getElementById(`li_${id}`);
@@ -2526,7 +2520,7 @@ function showCatSuggest(id, query) {
   const matched = q ? S.cats.filter(c=>c.name.toLowerCase().includes(q)) : S.cats;
   const hasExact = S.cats.find(c=>c.name.toLowerCase()===q);
   let html = matched.map(c=>`
-    <div onclick="selectCatSuggest(${id},'${c.name.replace(/'/g,"\'")}')"
+    <div onclick="selectCatSuggestLine(${id},'${c.name.replace(/'/g,"\'")}')"
       style="padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:14px;border-bottom:1px solid var(--border)"
       onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''">
       <span>${c.icon||'📋'}</span><span>${c.name}</span>
@@ -2548,15 +2542,13 @@ function hideCatSuggest(id) {
   if (box) box.style.display = 'none';
 }
 
-function selectCatSuggest(id, name) {
+function selectCatSuggestLine(id, name) {
   const row = document.getElementById('li_'+id);
   if (!row) return;
   const inp = row.querySelector('.li-cat-input');
   const hid = row.querySelector('.li-cat');
-  const sel = row.querySelector('.li-cat-select');
-  if (inp) inp.value = '';
+  if (inp) inp.value = name;
   if (hid) hid.value = name;
-  if (sel) sel.value = name; // sync dropdown
   hideCatSuggest(id);
   renderLineChips(id, name);
 }
@@ -2564,7 +2556,7 @@ function selectCatSuggest(id, name) {
 async function quickAddCatInline(id, name) {
   const trimmed = name.trim();
   if (!trimmed) return;
-  if (S.cats.find(c=>c.name===trimmed)) { selectCatSuggest(id, trimmed); return; }
+  if (S.cats.find(c=>c.name===trimmed)) { selectCatSuggestLine(id, trimmed); return; }
   const colors = ['#3b82f6','#f59e0b','#10b981','#8b5cf6','#ef4444','#06b6d4','#ec4899','#64748b','#f97316','#14b8a6'];
   const icons  = ['📋','💰','🚗','🍱','📎','🔧','📚','🎉','💡','🏢'];
   const idx    = S.cats.length % colors.length;
@@ -2574,7 +2566,7 @@ async function quickAddCatInline(id, name) {
   document.querySelectorAll('#lineItems > div').forEach(r=>{
     const rid=r.id?.replace('li_',''); if(rid) renderLineChips(Number(rid));
   });
-  selectCatSuggest(id, trimmed);
+  selectCatSuggestLine(id, trimmed);
   showToast(`เพิ่มหมวด "${trimmed}" แล้ว ✓`,'success');
 }
 
