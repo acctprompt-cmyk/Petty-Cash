@@ -1285,6 +1285,18 @@ async function submitRegisterCompany() {
   };
   await fbSet(`${fbPath}/users`, [adminUser]);
 
+  // บันทึก settings เริ่มต้นพร้อมชื่อบริษัท
+  await fbSet(`${fbPath}/settings`, {
+    companyName: companyName,
+    custodian:   'แผนกบัญชี',
+    approver:    'ผู้จัดการฝ่ายการเงิน',
+    fundLimit:   '10000',
+    maxPerItem:  '1000',
+    address: '', taxId: '', tel: '',
+    docFormat: 'PC-{YEAR}{MONTH}{DAY}-{SEQ}',
+    docSeqStart: '1', docSeqPad: '4',
+  });
+
   resultEl.innerHTML = `<div style="background:var(--success-bg);color:var(--success);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600">
     🎉 สร้างบริษัทสำเร็จ! รหัสบริษัท: <strong>${tenantId}</strong><br>
     กำลังเข้าสู่ระบบ...
