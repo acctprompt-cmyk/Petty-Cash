@@ -461,7 +461,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
         </div>
         <div class="header-right">
           <button class="ghost sm" onclick="manualRefresh()">🔄 รีเฟรช</button>
-          <span id="fbBadge" style="font-size:12px;color:var(--success);padding:4px 10px;border-radius:8px;background:var(--success-bg);border:1px solid rgba(16,185,129,.2);display:none">🔥 Real-time</span>
+          <span id="fbBadge" style="font-size:12px;color:var(--success);padding:4px 10px;border-radius:8px;background:var(--success-bg);border:1px solid rgba(16,185,129,.2);display:none" data-feature="realtime">🔥 Real-time</span>
           <span id="driveBadge" onclick="requestDriveToken()" style="font-size:13px;color:var(--text2);cursor:pointer;padding:6px 12px;border-radius:8px;background:var(--bg2);border:1px solid var(--border);display:none">☁️ เชื่อมต่อ Drive</span>
           <button class="ghost sm" onclick="showExportModal()" id="btnExportExcel" style="display:none">📊 Export Excel</button>
           <button class="ghost sm" onclick="exportMonthly()">📄 สรุปรายเดือน</button>
@@ -477,7 +477,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
       <button id="tabTransactionsBtn" onclick="switchTab('transactions')">📋 รายการทั้งหมด</button>
       <button id="tabFundsBtn" onclick="switchTab('funds')">💼 วงเงิน</button>
       <button id="tabCatsBtn" onclick="switchTab('cats')">🏷️ หมวดค่าใช้จ่าย</button>
-      <button id="tabCertBtn" onclick="switchTab('cert')">📄 ใบรับรองแทนใบเสร็จ</button>
+      <button id="tabCertBtn" onclick="switchTab('cert')">📄 ใบรับรองแทนใบเสร็จรับเงิน</button>
       <button id="tabUsersBtn" onclick="switchTab('users')">👤 ผู้ใช้งาน</button>
       <button id="tabSettingsBtn" onclick="switchTab('settings')">⚙️ ตั้งค่า</button>
     </div>
@@ -711,7 +711,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
           <thead><tr>
             <th>วันที่</th><th>เลขที่</th><th>หมวด</th><th>รายละเอียด</th>
             <th>พนักงาน</th><th>ยอดสุทธิ</th><th>สถานะ</th><th>ได้รับเอกสาร</th>
-            <th>ไฟล์แนบ</th><th>เอกสาร</th><th style="min-width:108px;max-width:130px;text-align:center">จัดการ</th>
+            <th style="max-width:160px">ไฟล์แนบ</th><th>เอกสาร</th><th style="min-width:108px;max-width:130px;text-align:center">จัดการ</th>
           </tr></thead>
           <tbody id="txBody"></tbody>
         </table>
@@ -1855,7 +1855,9 @@ function updateFirebaseBadge(ok) {
   const b = document.getElementById('fbBadge');
   if (!b) return;
   b.textContent = ok ? '🔥 Real-time' : '';
-  b.style.display = ok ? 'inline-block' : 'none';
+  // ซ่อน badge ถ้า Super Admin ยังไม่เปิดสิทธิ์ realtime
+  const allowed = _currentTenant?._features?.realtime === true;
+  b.style.display = (ok && allowed) ? 'inline-block' : 'none';
 }
 
 // อ่านข้อมูลจาก Firebase
@@ -2181,10 +2183,11 @@ function renderTxns() {
           : `<span style="background:var(--success-bg);color:var(--success);border:1px solid rgba(16,185,129,.2);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;white-space:nowrap">✓ ได้รับเอกสารแล้ว</span>`
         }
       </td>
-      <td>${t.attachmentUrl ? (() => {
+      <td style="max-width:150px">${t.attachmentUrl ? (() => {
         const isImg     = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(t.attachmentName||'') || t.attachmentUrl.startsWith('data:image');
         const isDataUrl = t.attachmentUrl.startsWith('data:');
         const name      = t.attachmentName||'ไฟล์แนบ';
+        const shortName = name.length>20 ? name.slice(0,18)+'…' : name;
         const reupBtn   = `<button class="ghost sm" style="font-size:11px;margin-top:3px" onclick='reuploadAttachment("${t.id}")'>☁️ อัปขึ้น Drive</button>`;
         if (isImg && isDataUrl) return `<div style="display:flex;flex-direction:column;gap:3px">
           <img class="att-thumb" src="${t.attachmentUrl}" alt="${name}"
@@ -2197,10 +2200,10 @@ function renderTxns() {
           onclick='openLightbox(${JSON.stringify(JSON.stringify({url:t.attachmentUrl,name}))})'
           style="max-height:48px;max-width:80px;border-radius:6px;cursor:pointer">`;
         if (isDataUrl) return `<div style="display:flex;flex-direction:column;gap:3px">
-          <button class="ghost sm" style="font-size:11px" onclick='downloadDataUrl("${t.id}")'>📎 ${name}</button>
+          <button class="ghost sm" style="font-size:11px" onclick='downloadDataUrl("${t.id}")'>📎 ${shortName}</button>
           ${reupBtn}
         </div>`;
-        return `<a href="${t.attachmentUrl}" target="_blank" style="color:var(--primary-g);font-weight:600;font-size:12px">📎 ${name}</a>`;
+        return `<a href="${t.attachmentUrl}" target="_blank" title="${name}" style="color:var(--primary-g);font-weight:600;font-size:12px;display:block;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📎 ${shortName}</a>`;
       })() : '-'}</td>
       <td style="min-width:130px;padding-right:18px">${t.receipt==='ใบรับรองแทนใบเสร็จรับเงิน'?
         `<button class="ghost sm" onclick='dlCert(${JSON.stringify(JSON.stringify(t))})' style="white-space:nowrap">📄 ดาวน์โหลด</button>`:
@@ -2412,8 +2415,6 @@ let _lineCount = 0;
 function addLineItem(desc='', cat='', amt='') {
   _lineCount++;
   const id = _lineCount;
-  const catOpts = '<option value="">— หมวด —</option>' +
-    S.cats.map(c=>`<option value="${c.name}" ${c.name===cat?'selected':''}>${c.icon||''} ${c.name}</option>`).join('');
   const row = document.createElement('div');
   row.id = `li_${id}`;
   row.style.cssText = 'margin-bottom:10px;padding:10px;background:var(--bg2);border:1px solid var(--border);border-radius:10px';
@@ -2426,10 +2427,20 @@ function addLineItem(desc='', cat='', amt='') {
       <button type="button" onclick="removeLineItem(${id})"
         style="width:32px;height:32px;border-radius:8px;border:1px solid var(--danger);background:var(--danger-bg);color:var(--danger);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
-    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-      <select class="li-cat" onchange="syncLineChips(${id})" style="min-width:160px">${catOpts}</select>
-      <div class="li-chips" style="display:flex;flex-wrap:wrap;gap:5px"></div>
-    </div>`;
+    <!-- Category autocomplete input -->
+    <div style="position:relative;margin-bottom:4px">
+      <input class="li-cat-input" placeholder="🏷️ พิมพ์หมวด หรือเพิ่มใหม่..." value="${cat}"
+        autocomplete="off"
+        oninput="showCatSuggest(${id},this.value)"
+        onfocus="showCatSuggest(${id},this.value)"
+        onblur="setTimeout(()=>hideCatSuggest(${id}),200)"
+        onkeydown="catInputKey(event,${id})"
+        style="width:100%;padding:8px 12px;border:1.5px solid var(--border2);border-radius:8px;font-size:14px;background:var(--surface);font-family:inherit">
+      <input type="hidden" class="li-cat" value="${cat}">
+      <div class="li-cat-suggest" id="li_suggest_${id}" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1.5px solid var(--border2);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:999;max-height:220px;overflow-y:auto;margin-top:2px"></div>
+    </div>
+    <!-- chips -->
+    <div class="li-chips" style="display:flex;flex-wrap:wrap;gap:5px"></div>`;
   document.getElementById('lineItems').appendChild(row);
   renderLineChips(id, cat);
   recalcLineItems();
@@ -2438,61 +2449,108 @@ function addLineItem(desc='', cat='', amt='') {
 function renderLineChips(id, selected) {
   const row = document.getElementById(`li_${id}`);
   if (!row) return;
-  const sel = row.querySelector('.li-cat');
-  const cur = selected !== undefined ? selected : (sel?.value||'');
+  const hid = row.querySelector('.li-cat');
+  const inp = row.querySelector('.li-cat-input');
+  const cur = selected !== undefined ? selected : (hid?.value||'');
+  // sync input
+  if (inp && selected !== undefined) inp.value = cur;
   const chips = row.querySelector('.li-chips');
   if (!chips) return;
-  chips.innerHTML = S.cats.map(c => {
+  chips.innerHTML = S.cats.filter(Boolean).map(c => {
     const active = c.name === cur;
-    return `<button type="button" onclick="selectLineChip(${id},'${c.name}')" style="
+    return `<button type="button" onclick="selectCatChip(${id},'${c.name.replace(/'/g,"\\'")}')" style="
       padding:4px 11px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;
       border:1.5px solid ${c.color||'var(--primary)'};transition:all .15s;
       background:${active?(c.color||'var(--primary)'):'transparent'};
-      color:${active?'#fff':(c.color||'var(--primary)')};
-      opacity:${active?1:0.75}">${c.icon||''}${c.name}</button>`;
-  }).join('') + `<button type="button" onclick="quickAddCat(${id})" style="
-    padding:4px 11px;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;
-    border:1.5px dashed var(--muted);background:transparent;color:var(--muted);transition:all .15s"
-    title="เพิ่มหมวดใหม่">+ หมวด</button>`;
+      color:${active?'#fff':(c.color||'var(--primary)')}">${c.icon||''}${c.name}</button>`;
+  }).join('');
 }
 
-function selectLineChip(id, name) {
+function selectCatChip(id, name) {
   const row = document.getElementById(`li_${id}`);
   if (!row) return;
-  const sel = row.querySelector('.li-cat');
-  if (sel) sel.value = sel.value === name ? '' : name;
-  renderLineChips(id);
+  const hid = row.querySelector('.li-cat');
+  const inp = row.querySelector('.li-cat-input');
+  const newVal = (hid?.value === name) ? '' : name;
+  if (hid) hid.value = newVal;
+  if (inp) inp.value = newVal;
+  renderLineChips(id, newVal);
 }
 
-function syncLineChips(id) {
-  renderLineChips(id);
+function selectLineChip(id, name) { selectCatChip(id, name); }
+
+function syncLineChips(id) { renderLineChips(id); }
+
+// ── Category Autocomplete ──
+function showCatSuggest(id, query) {
+  const box = document.getElementById('li_suggest_'+id);
+  if (!box) return;
+  const q = (query||'').trim().toLowerCase();
+  const matched = q ? S.cats.filter(c=>c.name.toLowerCase().includes(q)) : S.cats;
+  const hasExact = S.cats.find(c=>c.name.toLowerCase()===q);
+  let html = matched.map(c=>`
+    <div onclick="selectCatSuggest(${id},'${c.name.replace(/'/g,"\'")}')"
+      style="padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:14px;border-bottom:1px solid var(--border)"
+      onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''">
+      <span>${c.icon||'📋'}</span><span>${c.name}</span>
+    </div>`).join('');
+  if (q && !hasExact) {
+    html += `<div onclick="quickAddCatInline(${id},'${query.trim().replace(/'/g,"\'")}')"
+      style="padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:14px;color:var(--primary);font-weight:600"
+      onmouseenter="this.style.background='var(--bg2)'" onmouseleave="this.style.background=''">
+      <span>➕</span><span>เพิ่มหมวด "${query.trim()}"</span>
+    </div>`;
+  }
+  if (!html) html = '<div style="padding:10px 14px;color:var(--muted);font-size:13px">ไม่พบหมวด</div>';
+  box.innerHTML = html;
+  box.style.display = 'block';
+}
+
+function hideCatSuggest(id) {
+  const box = document.getElementById('li_suggest_'+id);
+  if (box) box.style.display = 'none';
+}
+
+function selectCatSuggest(id, name) {
+  const row = document.getElementById('li_'+id);
+  if (!row) return;
+  const inp = row.querySelector('.li-cat-input');
+  const hid = row.querySelector('.li-cat');
+  if (inp) inp.value = name;
+  if (hid) hid.value = name;
+  hideCatSuggest(id);
+  renderLineChips(id, name);
+}
+
+async function quickAddCatInline(id, name) {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  if (S.cats.find(c=>c.name===trimmed)) { selectCatSuggest(id, trimmed); return; }
+  const colors = ['#3b82f6','#f59e0b','#10b981','#8b5cf6','#ef4444','#06b6d4','#ec4899','#64748b','#f97316','#14b8a6'];
+  const icons  = ['📋','💰','🚗','🍱','📎','🔧','📚','🎉','💡','🏢'];
+  const idx    = S.cats.length % colors.length;
+  S.cats.push({ id:'C-'+uid(), name:trimmed, icon:icons[idx]||'📋', color:colors[idx]||'#64748b' });
+  await writeJson('cats', S.cats);
+  updateCatSelector();
+  document.querySelectorAll('#lineItems > div').forEach(r=>{
+    const rid=r.id?.replace('li_',''); if(rid) renderLineChips(Number(rid));
+  });
+  selectCatSuggest(id, trimmed);
+  showToast(`เพิ่มหมวด "${trimmed}" แล้ว ✓`,'success');
 }
 
 async function quickAddCat(lineId) {
   const name = prompt('ชื่อหมวดใหม่:');
-  if (!name || !name.trim()) return;
-  const trimmed = name.trim();
-  if (S.cats.find(c => c.name === trimmed)) {
-    // หมวดมีอยู่แล้ว — เลือกให้เลย
-    selectLineChip(lineId, trimmed);
-    return;
+  if (name?.trim()) await quickAddCatInline(lineId, name.trim());
+}
+
+function catInputKey(e, id) {
+  if (e.key==='Escape') { hideCatSuggest(id); return; }
+  if (e.key==='Enter') {
+    const box = document.getElementById('li_suggest_'+id);
+    const first = box?.querySelector('[onclick]');
+    if (first) { first.click(); e.preventDefault(); }
   }
-  // สร้างหมวดใหม่
-  const colors = ['#3b82f6','#f59e0b','#10b981','#8b5cf6','#ef4444','#06b6d4','#ec4899','#64748b','#f97316','#14b8a6'];
-  const icons  = ['📋','💰','🚗','🍱','📎','🔧','📚','🎉','💡','🏢'];
-  const idx    = S.cats.length % colors.length;
-  const newCat = { id:'C-'+uid(), name:trimmed, icon:icons[idx]||'📋', color:colors[idx]||'#64748b' };
-  S.cats.push(newCat);
-  await writeJson('cats', S.cats);
-  updateCatSelector();
-  // re-render chips ทุก line item
-  document.querySelectorAll('#lineItems > div').forEach(row => {
-    const id = row.id?.replace('li_','');
-    if (id) renderLineChips(Number(id));
-  });
-  // เลือกหมวดที่เพิ่งสร้างให้ line item นี้
-  selectLineChip(lineId, trimmed);
-  showToast(`เพิ่มหมวด "${trimmed}" แล้ว ✓`, 'success');
 }
 
 function removeLineItem(id) {
@@ -3214,9 +3272,13 @@ async function applyTenantFeatures() {
     const resp = await fetch(url);
     const cfg  = await resp.json();
     const features = cfg?.features || {};
-    // Export Excel — ซ่อนโดย default ยกเว้น super admin กำหนดให้เห็น
+    // เก็บ features ไว้ใน tenant object เพื่อให้ใช้ได้ทั่วระบบ
+    if (_currentTenant) _currentTenant._features = features;
+    // Export Excel — ซ่อนโดย default
     const btnExport = document.getElementById('btnExportExcel');
     if (btnExport) btnExport.style.display = features.exportExcel ? '' : 'none';
+    // Real-time badge — ซ่อนโดย default
+    updateFirebaseBadge(!!_db);
     // Tabs — ซ่อน/แสดงตาม features
     const tabMap = {
       tabDashboard:     features.dashboard     !== false,
