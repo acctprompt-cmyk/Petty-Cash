@@ -1573,6 +1573,7 @@ async function _setupDriveAuth() {
     _driveToken    = saved;
     _driveTokenExp = exp;
     updateDriveBadge(true, savedEmail);
+    startDriveTokenRefresh(); // เริ่ม auto refresh
     return;
   }
   // ถ้า token หมดหรือว่าง — ดึง email ที่ผูกไว้จาก Firebase แสดงให้รู้ว่าต้อง login Google account ใด
@@ -1643,8 +1644,56 @@ function requestDriveToken() {
 }
 
 async function getOrRequestDriveToken() {
+  // ถ้า token ยังใช้ได้ return เลย
   if (_driveToken && Date.now() < _driveTokenExp) return _driveToken;
-  return await requestDriveToken();
+  // token หมด — auto re-login แบบ silent (prompt: 'none' ก่อน)
+  return new Promise((resolve, reject) => {
+    if (!window.google?.accounts?.oauth2) {
+      reject(new Error('Google Identity Services ยังไม่โหลด'));
+      return;
+    }
+    // ลอง silent login ก่อน (ไม่มี popup ถ้า session ยังอยู่)
+    const silentClient = google.accounts.oauth2.initTokenClient({
+      client_id: DRIVE_CLIENT_ID,
+      scope: DRIVE_SCOPE,
+      prompt: '',  // ไม่ขอ consent ซ้ำถ้า session ยังอยู่
+      callback: async (resp) => {
+        if (resp.error) {
+          // silent ไม่ได้ → ขอ popup ปกติ
+          try {
+            const token = await requestDriveToken();
+            resolve(token);
+          } catch(e) { reject(e); }
+          return;
+        }
+        _driveToken    = resp.access_token;
+        _driveTokenExp = Date.now() + (resp.expires_in - 60) * 1000;
+        const tenantId = _currentTenant?.id || 'T-001';
+        localStorage.setItem('pca_drive_token_' + tenantId, _driveToken);
+        localStorage.setItem('pca_drive_exp_'   + tenantId, _driveTokenExp.toString());
+        updateDriveBadge(true, localStorage.getItem('pca_drive_email_' + tenantId)||'');
+        startDriveTokenRefresh(); // ตั้ง timer refresh ใหม่
+        resolve(_driveToken);
+      },
+    });
+    silentClient.requestAccessToken({ prompt: '' });
+  });
+}
+
+// refresh token อัตโนมัติก่อนหมด 5 นาที
+let _driveRefreshTimer = null;
+function startDriveTokenRefresh() {
+  if (_driveRefreshTimer) clearTimeout(_driveRefreshTimer);
+  const msLeft = _driveTokenExp - Date.now() - 5 * 60 * 1000; // 5 นาทีก่อนหมด
+  if (msLeft <= 0) return;
+  _driveRefreshTimer = setTimeout(async () => {
+    try {
+      await getOrRequestDriveToken();
+    } catch(e) {
+      // silent refresh ไม่ได้ — รอให้ลูกค้า trigger เอง
+      updateDriveBadge(false, localStorage.getItem('pca_drive_email_' + (_currentTenant?.id||'T-001'))||'');
+    }
+  }, msLeft);
 }
 
 function updateDriveBadge(ok, email='') {
