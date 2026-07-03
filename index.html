@@ -1720,9 +1720,26 @@ function updateDriveBadge(ok, email='') {
 async function uploadFileToDrive(file, dateStr, docNo) {
   const token = await getOrRequestDriveToken();
 
-  // สร้างโฟลเดอร์ "Petty Cash" ถ้ายังไม่มี
-  const folderName = 'Petty Cash — ' + (S.settings?.companyName || 'บริษัท');
-  const folderId   = await getOrCreateDriveFolder(token, folderName);
+  // ใช้ driveFolderId ของ tenant เป็น root (โฟลเดอร์ที่ลูกค้าวางลิ้งค์ตอนลงทะเบียน)
+  const tenantFolderId = _currentTenant?.driveFolderId || window._tenantFolderId || '';
+  if (!tenantFolderId) throw new Error('ไม่พบ Drive Folder ของบริษัท กรุณาติดต่อ Admin');
+
+  // สร้างโครงสร้าง Petty Cash / ปี / เดือน / วัน / เลขที่เอกสาร
+  const THAI_MONTHS = ['','01-มกราคม','02-กุมภาพันธ์','03-มีนาคม','04-เมษายน',
+    '05-พฤษภาคม','06-มิถุนายน','07-กรกฎาคม','08-สิงหาคม',
+    '09-กันยายน','10-ตุลาคม','11-พฤศจิกายน','12-ธันวาคม'];
+  const parts     = (dateStr||new Date().toISOString().slice(0,10)).split('-');
+  const thaiYear  = String(parseInt(parts[0]||2024) + 543);
+  const monthFolder = THAI_MONTHS[parseInt(parts[1]||1)] || parts[1];
+  const day       = parts[2] || '01';
+
+  // สร้างโฟลเดอร์ทีละชั้น โดยใช้ tenantFolderId เป็น root
+  let folderId = tenantFolderId;
+  folderId = await getOrCreateDriveFolderIn(token, 'Petty Cash', folderId);
+  folderId = await getOrCreateDriveFolderIn(token, thaiYear, folderId);
+  folderId = await getOrCreateDriveFolderIn(token, monthFolder, folderId);
+  folderId = await getOrCreateDriveFolderIn(token, day, folderId);
+  if (docNo) folderId = await getOrCreateDriveFolderIn(token, docNo, folderId);
 
   // อัปโหลดไฟล์
   const metadata = JSON.stringify({ name: file.name, parents: [folderId] });
@@ -1743,28 +1760,35 @@ async function uploadFileToDrive(file, dateStr, docNo) {
     method:  'POST',
     headers: { Authorization: 'Bearer '+token, 'Content-Type':'application/json' },
     body:    JSON.stringify({ role:'reader', type:'anyone' }),
-  });
+  }).catch(()=>{});
 
   return { webViewLink: data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`, name: data.name, id: data.id };
 }
 
-async function getOrCreateDriveFolder(token, name) {
-  // ค้นหาโฟลเดอร์ที่มีอยู่แล้ว
+// สร้างโฟลเดอร์ภายใต้ parent folder ที่กำหนด
+async function getOrCreateDriveFolderIn(token, name, parentId) {
+  // ค้นหาภายใต้ parent
+  const q = `name='${name.replace(/'/g,"\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`;
   const search = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=name='${encodeURIComponent(name)}' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)`,
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)`,
     { headers: { Authorization: 'Bearer ' + token } }
   );
   const sData = await search.json();
   if (sData.files?.length) return sData.files[0].id;
 
-  // สร้างใหม่
+  // สร้างใหม่ภายใต้ parent
   const create = await fetch('https://www.googleapis.com/drive/v3/files?fields=id', {
     method:  'POST',
     headers: { Authorization: 'Bearer '+token, 'Content-Type':'application/json' },
-    body:    JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder' }),
+    body:    JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] }),
   });
   const cData = await create.json();
+  if (cData.error) throw new Error('สร้างโฟลเดอร์ไม่ได้: ' + cData.error.message);
   return cData.id;
+}
+
+async function getOrCreateDriveFolder(token, name) {
+  return getOrCreateDriveFolderIn(token, name, 'root');
 }
 
 function loadScript(src) {
