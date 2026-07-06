@@ -620,6 +620,10 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
         <div><label>ชื่อผู้จำหน่าย / ร้านค้า</label><input id="f_vendor" placeholder="ไม่บังคับ"></div>
         <div><label>เลขประจำตัวผู้เสียภาษีผู้จำหน่าย</label><input id="f_vendor_tax" placeholder="ไม่บังคับ" maxlength="13"></div>
       </div>
+      <div style="margin-bottom:4px">
+        <label>ที่อยู่ผู้จำหน่าย <span style="font-weight:400;color:var(--muted)">(สำหรับใบสำคัญรับ/จ่าย)</span></label>
+        <input id="f_vendor_address" placeholder="เลขที่ ถนน ตำบล อำเภอ จังหวัด รหัสไปรษณีย์">
+      </div>
 
       <!-- ── วงเงิน ── -->
       <div id="req_fundRow" style="margin-bottom:4px">
@@ -649,6 +653,8 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
             <option>ใบกำกับภาษี</option>
             <option>ใบเสร็จรับเงิน</option>
             <option>ใบรับรองแทนใบเสร็จรับเงิน</option>
+            <option id="opt_paymentVoucher" style="display:none">ใบสำคัญจ่าย</option>
+            <option id="opt_receiptVoucher" style="display:none">ใบสำคัญรับ</option>
           </select>
         </div>
         <div><label>ได้รับเอกสารแล้ว?</label>
@@ -1129,6 +1135,13 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
 // ══════════════════════════════════════════════════════
 //  Petty Cash — ระบบเงินสดย่อย (ข้อมูลเก็บใน localStorage)
 // ══════════════════════════════════════════════════════
+// ── SUBSCRIPTION CONFIG ──
+const TRIAL_DAYS       = 14;   // วันทดลองใช้ฟรี
+const PROMPTPAY_NUMBER = '0812345678'; // เปลี่ยนเป็นเบอร์พร้อมเพย์ของคุณ
+const SUPER_ADMIN_EMAIL_NOTIFY = true;
+const PLAN_MONTHLY_PRICE = 299;  // บาท/เดือน
+const PLAN_YEARLY_PRICE  = 2990; // บาท/ปี
+
 // ── REGISTRY (Firebase หลักที่เก็บ tenant list) ──
 const REGISTRY_FB_URL    = 'https://petty-cash-ad50c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const REGISTRY_FB_SECRET = 'ywzydr8HCiZalfbUKJnx0ovbkFcCD7SXMPdyFKGA';
@@ -1179,6 +1192,173 @@ async function fetchAllTenants() {
     if (!list.find(t=>t.id==='T-001')) list.unshift(DEFAULT_TENANT_T001);
     return list;
   } catch(e) { return [DEFAULT_TENANT_T001]; }
+}
+
+// ── SUBSCRIPTION FUNCTIONS ──
+
+// ตรวจสอบอายุการใช้งาน
+function checkSubscription(tenant) {
+  if (!tenant) return { active: false, reason: 'no_tenant' };
+  const now = Date.now();
+
+  // ช่วงทดลองใช้
+  if (tenant.createdAt) {
+    const created  = new Date(tenant.createdAt).getTime();
+    const trialEnd = created + TRIAL_DAYS * 24 * 60 * 60 * 1000;
+    if (now < trialEnd) {
+      const daysLeft = Math.ceil((trialEnd - now) / (24*60*60*1000));
+      return { active: true, isTrial: true, daysLeft, trialEnd };
+    }
+  }
+
+  // ตรวจสอบการชำระเงิน
+  if (tenant.subscription?.expiresAt) {
+    const exp = new Date(tenant.subscription.expiresAt).getTime();
+    if (now < exp) {
+      const daysLeft = Math.ceil((exp - now) / (24*60*60*1000));
+      return { active: true, isTrial: false, daysLeft, expiresAt: tenant.subscription.expiresAt };
+    }
+    return { active: false, reason: 'expired', expiresAt: tenant.subscription.expiresAt };
+  }
+
+  return { active: false, reason: 'no_subscription' };
+}
+
+// คำนวณวันหมดอายุใหม่
+function calcNewExpiry(plan, currentExpiry) {
+  const base = currentExpiry && new Date(currentExpiry) > new Date()
+    ? new Date(currentExpiry)
+    : new Date();
+  if (plan === 'monthly') base.setMonth(base.getMonth() + 1);
+  else base.setFullYear(base.getFullYear() + 1);
+  return base.toISOString();
+}
+
+// บันทึก subscription ลง registry
+async function saveSubscription(tenantId, plan, expiresAt) {
+  const url  = `${REGISTRY_FB_URL}/${REGISTRY_PATH}/${tenantId}/subscription.json?auth=${REGISTRY_FB_SECRET}`;
+  await fetch(url, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ plan, expiresAt, updatedAt: new Date().toISOString() }),
+  });
+}
+
+// ส่ง Email แจ้งเตือนผ่าน Apps Script
+async function sendNotifyEmail(subject, htmlBody) {
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'sendEmail', subject, message: htmlBody }),
+    });
+  } catch(e) { console.warn('Email notify failed:', e.message); }
+}
+
+// แสดงหน้า Lock เมื่อหมดอายุ
+function showSubscriptionLock(tenant, status) {
+  const existing = document.getElementById('subscriptionLock');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'subscriptionLock';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,15,35,.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+
+  const qrUrl = `https://promptpay.io/${PROMPTPAY_NUMBER}`;
+
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:24px;padding:32px;max-width:480px;width:100%;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.4)">
+      <div style="font-size:48px;margin-bottom:12px">🔒</div>
+      <div style="font-size:20px;font-weight:700;color:#1e1b4b;margin-bottom:8px">หมดอายุการใช้งาน</div>
+      <div style="font-size:14px;color:#6b7280;margin-bottom:24px">
+        ${status.reason === 'expired'
+          ? `หมดอายุเมื่อ ${new Date(status.expiresAt).toLocaleDateString('th-TH')}`
+          : 'กรุณาชำระเงินเพื่อต่ออายุการใช้งาน'}
+      </div>
+
+      <div style="background:#f5f7ff;border-radius:16px;padding:20px;margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;color:#4f46e5;margin-bottom:12px">💳 เลือกแพ็กเกจ</div>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button onclick="selectPlan('monthly')" id="planMonthly" style="flex:1;padding:12px;border-radius:12px;border:2px solid #4f46e5;background:#4f46e5;color:#fff;cursor:pointer;font-family:inherit;font-weight:700">
+            <div style="font-size:18px;font-weight:700">฿${PLAN_MONTHLY_PRICE}</div>
+            <div style="font-size:12px;opacity:.85">รายเดือน</div>
+          </button>
+          <button onclick="selectPlan('yearly')" id="planYearly" style="flex:1;padding:12px;border-radius:12px;border:2px solid #d1d9f0;background:#fff;color:#1e1b4b;cursor:pointer;font-family:inherit;font-weight:700">
+            <div style="font-size:18px;font-weight:700">฿${PLAN_YEARLY_PRICE}</div>
+            <div style="font-size:12px;color:#6b7280">รายปี (ประหยัด ${Math.round(100 - (PLAN_YEARLY_PRICE/PLAN_MONTHLY_PRICE/12*100))}%)</div>
+          </button>
+        </div>
+      </div>
+
+      <div style="background:#f0fdf4;border-radius:12px;padding:16px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:#059669;margin-bottom:8px">📱 ชำระผ่านพร้อมเพย์</div>
+        <img id="qrCodeImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrUrl + '/${PLAN_MONTHLY_PRICE}')}" style="width:180px;height:180px;border-radius:8px">
+        <div style="font-size:12px;color:#6b7280;margin-top:8px">พร้อมเพย์: <b>${PROMPTPAY_NUMBER}</b></div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:4px" id="planAmountTxt">จำนวน: ฿${PLAN_MONTHLY_PRICE}</div>
+      </div>
+
+      <div style="font-size:12px;color:#6b7280;margin-bottom:16px">
+        หลังชำระเงิน กรุณาแจ้ง Admin เพื่อต่ออายุ<br>
+        หรือส่งหลักฐานมาที่ <b>${SUPER_ADMIN_EMAIL_NOTIFY ? 'admin@pettycash.app' : ''}</b>
+      </div>
+
+      <button onclick="showPaymentProof()" style="width:100%;padding:12px;background:#4f46e5;color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:15px">
+        📤 แจ้งชำระเงินแล้ว
+      </button>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  window._selectedPlan = 'monthly';
+}
+
+function selectPlan(plan) {
+  window._selectedPlan = plan;
+  const prices = { monthly: PLAN_MONTHLY_PRICE, yearly: PLAN_YEARLY_PRICE };
+  const price  = prices[plan];
+  const btnM = document.getElementById('planMonthly');
+  const btnY = document.getElementById('planYearly');
+  const qrImg = document.getElementById('qrCodeImg');
+  const amt   = document.getElementById('planAmountTxt');
+  const qrUrl = `https://promptpay.io/${PROMPTPAY_NUMBER}`;
+
+  if (btnM && btnY) {
+    btnM.style.background = plan==='monthly' ? '#4f46e5' : '#fff';
+    btnM.style.color      = plan==='monthly' ? '#fff' : '#1e1b4b';
+    btnM.style.borderColor= plan==='monthly' ? '#4f46e5' : '#d1d9f0';
+    btnY.style.background = plan==='yearly'  ? '#4f46e5' : '#fff';
+    btnY.style.color      = plan==='yearly'  ? '#fff' : '#1e1b4b';
+    btnY.style.borderColor= plan==='yearly'  ? '#4f46e5' : '#d1d9f0';
+  }
+  if (qrImg) qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qrUrl + '/' + price)}`;
+  if (amt)   amt.textContent = `จำนวน: ฿${price}`;
+}
+
+async function showPaymentProof() {
+  const plan   = window._selectedPlan || 'monthly';
+  const price  = plan === 'monthly' ? PLAN_MONTHLY_PRICE : PLAN_YEARLY_PRICE;
+  const tenant = _currentTenant || DEFAULT_TENANT_T001;
+
+  // แจ้ง Super Admin ผ่าน Firebase (pending payment)
+  const pendingUrl = `${REGISTRY_FB_URL}/${REGISTRY_PATH}/${tenant.id}/pendingPayment.json?auth=${REGISTRY_FB_SECRET}`;
+  await fetch(pendingUrl, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      plan, price, requestedAt: new Date().toISOString(),
+      companyName: tenant.companyName, tenantId: tenant.id,
+    }),
+  });
+
+  // ส่ง Email แจ้ง Super Admin
+  await sendNotifyEmail(
+    `💳 แจ้งชำระเงิน — ${tenant.companyName} (${tenant.id})`,
+    `<h2>มีการแจ้งชำระเงิน</h2>
+     <p><b>บริษัท:</b> ${tenant.companyName} (${tenant.id})</p>
+     <p><b>แพ็กเกจ:</b> ${plan === 'monthly' ? 'รายเดือน' : 'รายปี'} — ฿${price}</p>
+     <p><b>วันที่แจ้ง:</b> ${new Date().toLocaleString('th-TH')}</p>
+     <p>กรุณาตรวจสอบและต่ออายุที่ <a href="https://petty-cash-alpha.vercel.app/admin.html">admin.html</a></p>`
+  );
+
+  showToast('✅ แจ้งชำระเงินแล้ว รอ Admin ยืนยันภายใน 24 ชั่วโมง', 'success');
 }
 
 const CFG_KEY  = 'pca_cfg';
@@ -1302,6 +1482,22 @@ async function submitRegisterCompany() {
     docFormat: 'PC-{YEAR}{MONTH}{DAY}-{SEQ}',
     docSeqStart: '1', docSeqPad: '4',
   });
+
+  // ส่ง Email แจ้ง Super Admin
+  const trialEnd = new Date(Date.now() + 14*24*60*60*1000).toLocaleDateString('th-TH');
+  sendNotifyEmail(
+    `🏢 บริษัทใหม่ลงทะเบียน — ${companyName} (${tenantId})`,
+    `<h2>มีบริษัทใหม่ลงทะเบียนในระบบ Petty Cash</h2>
+     <table border="1" cellpadding="8" style="border-collapse:collapse;font-family:sans-serif">
+       <tr style="background:#4f46e5;color:#fff"><td colspan="2"><b>ข้อมูลบริษัทใหม่</b></td></tr>
+       <tr><td><b>รหัสบริษัท</b></td><td>${tenantId}</td></tr>
+       <tr><td><b>ชื่อบริษัท</b></td><td>${companyName}</td></tr>
+       <tr><td><b>Admin คนแรก</b></td><td>${username}</td></tr>
+       <tr><td><b>วันที่สมัคร</b></td><td>${new Date().toLocaleString('th-TH')}</td></tr>
+       <tr><td><b>ทดลองใช้ฟรีถึง</b></td><td>${trialEnd}</td></tr>
+     </table>
+     <br><p>จัดการได้ที่ <a href="https://petty-cash-alpha.vercel.app/admin.html">admin.html</a></p>`
+  ).catch(()=>{});
 
   resultEl.innerHTML = `<div style="background:var(--success-bg);color:var(--success);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600">
     🎉 สร้างบริษัทสำเร็จ! รหัสบริษัท: <strong>${tenantId}</strong><br>
@@ -1486,6 +1682,16 @@ async function login() {
   setTimeout(initDriveAuth, 800);
   startAutoRefresh();
   if (btn) { btn.disabled=false; btn.innerHTML='เข้าสู่ระบบ'; }
+
+  // ตรวจสอบอายุการใช้งาน
+  const subStatus = checkSubscription(_currentTenant);
+  if (!subStatus.active) {
+    showSubscriptionLock(_currentTenant, subStatus);
+  } else if (subStatus.isTrial) {
+    showToast(`🎉 ทดลองใช้ฟรี เหลืออีก ${subStatus.daysLeft} วัน`, '');
+  } else if (subStatus.daysLeft <= 7) {
+    showToast(`⚠️ อายุการใช้งานเหลืออีก ${subStatus.daysLeft} วัน กรุณาต่ออายุ`, '');
+  }
 }
 
 function logout() {
@@ -2296,9 +2502,17 @@ function renderTxns() {
         </div>`;
         return `<a href="${t.attachmentUrl}" target="_blank" title="${name}" style="color:var(--primary-g);font-weight:600;font-size:12px;display:block;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📎 ${shortName}</a>`;
       })() : '-'}</td>
-      <td style="min-width:130px;padding-right:18px">${t.receipt==='ใบรับรองแทนใบเสร็จรับเงิน'?
-        `<button class="ghost sm" onclick='dlCert(${JSON.stringify(JSON.stringify(t))})' style="white-space:nowrap">📄 ดาวน์โหลด</button>`:
-        (t.receipt||'-')}</td>
+      <td style="min-width:130px;padding-right:18px">${(() => {
+        const r = t.receipt || '';
+        const tJson = JSON.stringify(JSON.stringify(t));
+        if (r === 'ใบรับรองแทนใบเสร็จรับเงิน')
+          return `<button class="ghost sm" onclick='dlCert(${tJson})' style="white-space:nowrap">📄 ใบรับรอง</button>`;
+        if (r === 'ใบสำคัญจ่าย')
+          return `<button class="ghost sm" onclick='dlPaymentVoucher(${tJson})' style="white-space:nowrap">📄 ใบสำคัญจ่าย</button>`;
+        if (r === 'ใบสำคัญรับ')
+          return `<button class="ghost sm" onclick='dlReceiptVoucher(${tJson})' style="white-space:nowrap">📄 ใบสำคัญรับ</button>`;
+        return r || '-';
+      })()}</td>
       <td style="min-width:108px;max-width:130px;padding:8px 6px">
         <div style="display:flex;flex-direction:column;gap:5px">
         ${t.status==='รออนุมัติ' ? `
@@ -2808,6 +3022,7 @@ function editTx(id) {
   document.getElementById('f_req').value        = t.requester || '';
   document.getElementById('f_date').value       = t.date || '';
   document.getElementById('f_vendor').value     = t.vendor || '';
+  if (document.getElementById('f_vendor_address')) document.getElementById('f_vendor_address').value = t.vendorAddress || '';
   if (document.getElementById('f_vendor_tax')) document.getElementById('f_vendor_tax').value = t.vendorTax || '';
   document.getElementById('f_note').value       = t.note || '';
   document.getElementById('f_taxMode').value    = (t.vatAmount>0) ? 'มี VAT' : 'ไม่มี VAT';
@@ -2886,6 +3101,7 @@ async function saveTx(addAnother=false) {
       docReceived,
       note: document.getElementById('f_note').value,
       vendor: document.getElementById('f_vendor')?.value.trim() || '',
+      vendorAddress: document.getElementById('f_vendor_address')?.value.trim() || '',
       vendorTax: document.getElementById('f_vendor_tax')?.value.trim() || '',
       attachmentUrl: attachmentUrl || (isEditing ? (existing?.attachmentUrl||'') : ''),
       attachmentName: attachmentName || (isEditing ? (existing?.attachmentName||'') : ''),
@@ -2996,6 +3212,7 @@ function clearForm() {
   updateDocPreview();
   recalc();
   const vnd = document.getElementById('f_vendor'); if(vnd) vnd.value='';
+  const vndAddr = document.getElementById('f_vendor_address'); if(vndAddr) vndAddr.value='';
   const vtx = document.getElementById('f_vendor_tax'); if(vtx) vtx.value='';
   const rfi = document.getElementById('f_req_fund'); if(rfi) { rfi.value=''; onReqFundChange(); }
   // reset line items
@@ -3383,6 +3600,11 @@ async function applyTenantFeatures() {
     if (btnExport) btnExport.style.display = features.exportExcel ? '' : 'none';
     // Real-time badge — ซ่อนโดย default
     updateFirebaseBadge(!!_db);
+    // ใบสำคัญจ่าย / ใบสำคัญรับ — ซ่อนโดย default รอ Super Admin เปิดสิทธิ์
+    const optPay = document.getElementById('opt_paymentVoucher');
+    const optRec = document.getElementById('opt_receiptVoucher');
+    if (optPay) optPay.style.display = features.paymentVoucher ? '' : 'none';
+    if (optRec) optRec.style.display = features.receiptVoucher ? '' : 'none';
     // Tabs — ซ่อน/แสดงตาม features
     const tabMap = {
       tabDashboard:     features.dashboard     !== false,
@@ -4370,6 +4592,146 @@ function dlCert(raw){
   const reqPos = reqUser?.role || 'พนักงาน';
   dlCertWithItems(t, items, s.companyName||'บริษัท', reqPos, reqSig, appSig);
 }
+
+// ── ใบสำคัญจ่าย (Payment Voucher) ──
+function dlPaymentVoucher(raw) {
+  const t   = JSON.parse(raw);
+  const s   = S.settings || DEFAULT_S;
+  const fmt = n => new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0));
+  const reqUser = S.users.find(u=>u.displayName===t.requester||u.username===t.requester);
+  const appUser = S.users.find(u=>u.role==="ผู้อนุมัติ"&&(u.displayName===t.approver||u.username===t.approver))
+               || S.users.find(u=>u.role==="ผู้อนุมัติ");
+  const payUser = S.users.find(u=>u.role==="แอดมิน") || appUser;
+  const reqSig  = reqUser?.signature||"";
+  const appSig  = appUser?.signature||"";
+  const paySig  = payUser?.signature||"";
+
+  const sigSlot = (id, saved, label) => {
+    const imgPart = saved
+      ? `<img src="${saved}" style="max-height:68px;max-width:170px;object-fit:contain">`
+      : `<label for="file_${id}" style="cursor:pointer;font-size:11px;color:#2563eb;border:1.5px dashed #93c5fd;border-radius:6px;padding:4px 10px">📁 เลือกลายเซ็น</label>
+         <input type="file" id="file_${id}" accept="image/*" style="display:none" onchange="loadSig2('${id}',this)">
+         <img id="img_${id}" src="" style="max-height:68px;display:none">`;
+    return `<div style="text-align:center;min-width:160px">
+      <div style="min-height:72px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #000;margin-bottom:4px">${imgPart}</div>
+      <div style="font-size:12px">ลงชื่อ...................................................(${label})</div>
+      <div style="font-size:11px;color:#555">(............................................)</div>
+    </div>`;
+  };
+
+  const net = Number(t.netPaid||t.amount||0);
+  const ROWS = 6;
+  let tableRows = `<tr><td style="text-align:center">1</td><td>${t.description||"-"}</td><td style="text-align:right">${fmt(Number(t.beforeVat||t.amount||0))}</td><td style="text-align:right"></td></tr>`;
+  for(let i=1;i<ROWS;i++) tableRows += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
+
+  const payMethod = t.paymentMethod || "";
+  const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">
+  <title>ใบสำคัญจ่าย ${t.documentNo||""}</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"TH SarabunNew","Sarabun",sans-serif;font-size:14pt;padding:20px 28px;color:#000}.title{text-align:center;font-size:18pt;font-weight:bold;margin-bottom:12px}.underline{border-bottom:1px solid #000;display:inline-block;min-width:200px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #000;padding:4px 8px}th{background:#f5f5f5;text-align:center}.sig-row{display:flex;justify-content:space-between;margin-top:28px;gap:12px}@media print{body{padding:10px 16px}}</style></head><body>
+  <div class="title">ใบสำคัญจ่าย</div>
+  <div style="text-align:right">
+    <div>เลขที่<span class="underline" style="min-width:200px">&nbsp;${t.documentNo||""}&nbsp;</span></div>
+    <div>วันที่<span class="underline" style="min-width:200px">&nbsp;${formatThaiDate(t.date)}&nbsp;</span></div>
+  </div>
+  <div style="margin:5px 0">จ่ายให้<span class="underline" style="min-width:360px">&nbsp;${t.vendor||t.requester||""}&nbsp;</span></div>
+  <div style="margin:5px 0">ที่อยู่<span class="underline" style="min-width:360px">&nbsp;${t.vendorAddress||""}&nbsp;</span></div>
+  <div style="margin:5px 0">เลขประจำตัวผู้เสียภาษี<span class="underline" style="min-width:280px">&nbsp;${t.vendorTax||""}&nbsp;</span></div>
+  <table>
+    <thead><tr><th style="width:10%">ลำดับที่</th><th>รายการ</th><th style="width:20%">จำนวนเงิน (บาท)</th><th style="width:10%">สต.</th></tr></thead>
+    <tbody>${tableRows}</tbody>
+    <tfoot>
+      <tr>
+        <td colspan="2" style="border:1px solid #000">
+          <b>การชำระเงิน</b><br>
+          <label><input type="checkbox" ${payMethod==="cash"?"checked":""}> เงินสด/Cash</label><br>
+          <label><input type="checkbox" ${payMethod==="bank"?"checked":""}> โอนเงิน/Bank</label><br>
+          <label><input type="checkbox" ${payMethod==="cheque"?"checked":""}> เช็คธนาคาร/Bank<span style="margin-left:8px">..................เลขที่..........ลงวันที่.....</span></label>
+        </td>
+        <td colspan="2" style="text-align:right;vertical-align:top;border:1px solid #000">
+          <b>รวม</b><br>${fmt(Number(t.beforeVat||t.amount||0))}<br>
+          ${t.vatAmount?`VAT ${fmt(t.vatAmount)}<br>`:""}
+          ${t.whtAmount?`หัก ณ ที่จ่าย (${fmt(t.whtAmount)})<br>`:""}
+          <b>สุทธิ ${fmt(net)}</b>
+        </td>
+      </tr>
+    </tfoot>
+  </table>
+  <div style="margin:5px 0">ตัวอักษร(<span class="underline" style="min-width:340px">&nbsp;${thbText(net)}&nbsp;</span>)</div>
+  <div class="sig-row">
+    ${sigSlot("pv_receiver",reqSig,"ผู้รับเงิน")}
+    ${sigSlot("pv_payer",paySig,"ผู้จ่ายเงิน")}
+    ${sigSlot("pv_approver",appSig,"ผู้อนุมัติ")}
+  </div>
+  <script>function loadSig2(id,input){const file=input.files[0];if(!file)return;const r=new FileReader();r.onload=e=>{const img=document.getElementById("img_"+id);if(img){img.src=e.target.result;img.style.display="block";}const lbl=input.previousElementSibling;if(lbl&&lbl.tagName==="LABEL")lbl.style.display="none";};r.readAsDataURL(file);}<\/script>
+  </body></html>`;
+  showCertModal(html);
+}
+
+// ── ใบสำคัญรับ (Receipt Voucher) ──
+function dlReceiptVoucher(raw) {
+  const t   = JSON.parse(raw);
+  const s   = S.settings || DEFAULT_S;
+  const fmt = n => new Intl.NumberFormat("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0));
+  const reqUser = S.users.find(u=>u.displayName===t.requester||u.username===t.requester);
+  const appUser = S.users.find(u=>u.role==="ผู้อนุมัติ"&&(u.displayName===t.approver||u.username===t.approver))
+               || S.users.find(u=>u.role==="ผู้อนุมัติ");
+  const reqSig  = reqUser?.signature||"";
+  const appSig  = appUser?.signature||"";
+
+  const sigSlot = (id, saved, label) => {
+    const imgPart = saved
+      ? `<img src="${saved}" style="max-height:68px;max-width:190px;object-fit:contain">`
+      : `<label for="file_${id}" style="cursor:pointer;font-size:11px;color:#2563eb;border:1.5px dashed #93c5fd;border-radius:6px;padding:4px 10px">📁 เลือกลายเซ็น</label>
+         <input type="file" id="file_${id}" accept="image/*" style="display:none" onchange="loadSig2('${id}',this)">
+         <img id="img_${id}" src="" style="max-height:68px;display:none">`;
+    return `<div style="text-align:center;min-width:200px">
+      <div style="min-height:72px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #000;margin-bottom:4px">${imgPart}</div>
+      <div style="font-size:12px">ลงชื่อ...................................................(${label})</div>
+      <div style="font-size:11px;color:#555">(............................................)</div>
+    </div>`;
+  };
+
+  const totalAmt = Number(t.netPaid||t.amount||0);
+  const totalBaht = String(Math.floor(totalAmt));
+  const totalSatang = String(Math.round((totalAmt%1)*100)).padStart(2,"0");
+  const dateStr = (t.date||"").split("-");
+  const thaiYear = dateStr[0] ? String(parseInt(dateStr[0])+543) : "";
+  const MONTHS = ["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  const ROWS = 10;
+  let tableRows = `<tr><td>${t.description||"-"}</td><td style="text-align:right;border-right:none">${totalBaht}</td><td style="text-align:center;border-left:none">${totalSatang}</td></tr>`;
+  for(let i=1;i<ROWS;i++) tableRows += `<tr><td>&nbsp;</td><td style="border-right:none">&nbsp;</td><td style="border-left:none">&nbsp;</td></tr>`;
+
+  const addrParts = (t.vendorAddress||"").split(" ");
+  const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">
+  <title>ใบสำคัญรับ ${t.documentNo||""}</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"TH SarabunNew","Sarabun",sans-serif;font-size:14pt;padding:20px 28px;color:#000}.title{text-align:center;font-size:18pt;font-weight:bold;margin-bottom:14px}.underline{border-bottom:1px solid #000;display:inline-block;min-width:200px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #000;padding:4px 8px}th{text-align:center;background:#f5f5f5}.sig-row{display:flex;justify-content:space-around;margin-top:28px}.note{color:#c00;font-size:10pt;margin-top:12px}@media print{body{padding:10px 16px}}</style></head><body>
+  <div class="title">ใบสำคัญรับเงิน</div>
+  <div style="text-align:right">ที่<span class="underline" style="min-width:80px">&nbsp;${t.documentNo||""}&nbsp;</span></div>
+  <div style="text-align:right;margin-bottom:8px">วันที่<span class="underline" style="min-width:40px">&nbsp;${dateStr[2]||""}&nbsp;</span>เดือน<span class="underline" style="min-width:80px">&nbsp;${MONTHS[parseInt(dateStr[1]||0)]||""}&nbsp;</span>พ.ศ.<span class="underline" style="min-width:60px">&nbsp;${thaiYear}&nbsp;</span></div>
+  <div style="margin:5px 0">ข้าพเจ้า<span class="underline" style="min-width:280px">&nbsp;${t.vendor||t.requester||""}&nbsp;</span>(ผู้ขายสินค้า/ให้บริการ)</div>
+  <div style="margin:5px 0">เลขประจำตัวผู้เสียภาษี<span class="underline" style="min-width:180px">&nbsp;${t.vendorTax||""}&nbsp;</span>อยู่บ้านเลขที่<span class="underline" style="min-width:50px">&nbsp;&nbsp;</span>หมู่<span class="underline" style="min-width:30px">&nbsp;&nbsp;</span></div>
+  <div style="margin:5px 0">ถนน<span class="underline" style="min-width:100px">&nbsp;&nbsp;</span>แขวง/ตำบล<span class="underline" style="min-width:80px">&nbsp;&nbsp;</span>เขต/อำเภอ<span class="underline" style="min-width:80px">&nbsp;&nbsp;</span></div>
+  <div style="margin:5px 0">จังหวัด<span class="underline" style="min-width:100px">&nbsp;${t.vendorAddress||""}&nbsp;</span></div>
+  <div style="margin-top:8px;margin-bottom:4px">ได้รับเงินจาก<span class="underline" style="min-width:180px">&nbsp;${s.companyName||""}&nbsp;</span>(ผู้ซื้อ/ผู้รับบริการ) ดังรายการต่อไปนี้</div>
+  <table>
+    <thead>
+      <tr><th rowspan="2">รายการ</th><th colspan="2">จำนวนเงิน</th></tr>
+      <tr><th style="width:80px">บาท</th><th style="width:50px">สต.</th></tr>
+    </thead>
+    <tbody>${tableRows}</tbody>
+    <tfoot><tr><td style="text-align:right"><b>รวมเป็นเงิน</b></td><td style="text-align:right"><b>${totalBaht}</b></td><td style="text-align:center"><b>${totalSatang}</b></td></tr></tfoot>
+  </table>
+  <div style="margin:5px 0">จำนวนเงิน(อักษร)<span class="underline" style="min-width:300px">&nbsp;${thbText(totalAmt)}&nbsp;</span></div>
+  <div class="sig-row">
+    ${sigSlot("rv_receiver",reqSig,"ผู้รับเงิน")}
+    ${sigSlot("rv_payer",appSig,"ผู้จ่ายเงิน")}
+  </div>
+  <div class="note">หมายเหตุ แนบสำเนาบัตรประจำตัวประชาชนผู้รับเงิน (ซึ่งเป็นผู้ประกอบอาชีพขายสินค้า/ให้บริการอย่างแท้จริง)</div>
+  <script>function loadSig2(id,input){const file=input.files[0];if(!file)return;const r=new FileReader();r.onload=e=>{const img=document.getElementById("img_"+id);if(img){img.src=e.target.result;img.style.display="block";}const lbl=input.previousElementSibling;if(lbl&&lbl.tagName==="LABEL")lbl.style.display="none";};r.readAsDataURL(file);}<\/script>
+  </body></html>`;
+  showCertModal(html);
+}
+
 // ══════════════════════════════════════════════════════
 //  DASHBOARD
 // ══════════════════════════════════════════════════════
