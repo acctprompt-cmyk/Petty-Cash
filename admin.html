@@ -76,7 +76,9 @@ button{border:none;padding:9px 16px;border-radius:9px;font-weight:700;cursor:poi
 /* Modal */
 .modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;align-items:center;justify-content:center;padding:20px}
 .modal-ov.show{display:flex}
-.modal-box{background:var(--surface);border-radius:20px;padding:28px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal-box{background:var(--surface);border-radius:20px;padding:28px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow-lg);transition:all .25s}
+.modal-box.fullscreen{max-width:100%;max-height:100%;height:100%;border-radius:0;margin:0}
+.modal-ov.fullscreen{padding:0;align-items:stretch}
 .modal-title{font-size:17px;font-weight:700;margin-bottom:16px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:500px){.row2{grid-template-columns:1fr}}
@@ -232,7 +234,7 @@ button{border:none;padding:9px 16px;border-radius:9px;font-weight:700;cursor:poi
 
 <!-- Modal รายละเอียดบริษัท -->
 <div class="modal-ov" id="detailModal">
-  <div class="modal-box">
+  <div class="modal-box" id="detailModalBox">
     <div class="modal-title" id="detailTitle">📋 รายละเอียดบริษัท</div>
     <div id="detailContent"></div>
     <div style="border-top:1px solid var(--border);margin:16px 0"></div>
@@ -243,7 +245,8 @@ button{border:none;padding:9px 16px;border-radius:9px;font-weight:700;cursor:poi
     <div class="modal-title" style="font-size:14px">👥 Users ในบริษัทนี้</div>
     <div id="usersList" style="max-height:240px;overflow-y:auto"></div>
     <div class="btn-row">
-      <button onclick="document.getElementById('detailModal').classList.remove('show')" class="btn-ghost">ปิด</button>
+      <button onclick="toggleDetailFullscreen()" class="btn-ghost" id="btnFullscreen">⛶ เต็มหน้าจอ</button>
+      <button onclick="document.getElementById('detailModal').classList.remove('show');exitDetailFullscreen()" class="btn-ghost">ปิด</button>
       <button onclick="resetAdminPass()" class="btn-danger btn-sm" id="resetPassBtn">🔑 รีเซ็ตรหัส Admin</button>
     </div>
   </div>
@@ -272,7 +275,7 @@ button{border:none;padding:9px 16px;border-radius:9px;font-weight:700;cursor:poi
 const REGISTRY_FB_URL    = 'https://petty-cash-ad50c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const REGISTRY_FB_SECRET = 'ywzydr8HCiZalfbUKJnx0ovbkFcCD7SXMPdyFKGA';
 const REGISTRY_PATH      = 'registry/tenants';
-const SUPER_ADMIN_PASS   = 'admin3909*'; // เปลี่ยนได้
+const SUPER_ADMIN_PASS   = 'petty@super2024'; // เปลี่ยนได้
 const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8o3DtWCHSqU1h2ZaIpthKCcbJlN_p_LBBDWr_i63zVqRF4fqVjUn_pRf1_trsRILwvw/exec';
 const DEFAULT_TENANT_T001 = {
   id: 'T-001', companyName: 'บริษัทตัวอย่าง จำกัด',
@@ -313,6 +316,31 @@ async function fbSet(path, data) {
 }
 
 // ── Load all tenants ──
+// ── Fullscreen Detail Modal ──
+let _isDetailFullscreen = false;
+function toggleDetailFullscreen() {
+  _isDetailFullscreen = !_isDetailFullscreen;
+  const ov  = document.getElementById('detailModal');
+  const box = document.getElementById('detailModalBox');
+  const btn = document.getElementById('btnFullscreen');
+  if (_isDetailFullscreen) {
+    ov.classList.add('fullscreen');
+    box.classList.add('fullscreen');
+    if (btn) btn.textContent = '⊡ ย่อหน้าจอ';
+  } else {
+    ov.classList.remove('fullscreen');
+    box.classList.remove('fullscreen');
+    if (btn) btn.textContent = '⛶ เต็มหน้าจอ';
+  }
+}
+function exitDetailFullscreen() {
+  _isDetailFullscreen = false;
+  document.getElementById('detailModal')?.classList.remove('fullscreen');
+  document.getElementById('detailModalBox')?.classList.remove('fullscreen');
+  const btn = document.getElementById('btnFullscreen');
+  if (btn) btn.textContent = '⛶ เต็มหน้าจอ';
+}
+
 async function loadAll() {
   document.getElementById('tenantBody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px">⏳ กำลังโหลด...</td></tr>';
   try {
