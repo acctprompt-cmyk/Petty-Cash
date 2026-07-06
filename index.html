@@ -1135,6 +1135,54 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
 // ══════════════════════════════════════════════════════
 //  Petty Cash — ระบบเงินสดย่อย (ข้อมูลเก็บใน localStorage)
 // ══════════════════════════════════════════════════════
+// ── REGISTRY ──
+const REGISTRY_FB_URL    = 'https://petty-cash-ad50c-default-rtdb.asia-southeast1.firebasedatabase.app';
+const REGISTRY_FB_SECRET = 'ywzydr8HCiZalfbUKJnx0ovbkFcCD7SXMPdyFKGA';
+const REGISTRY_PATH      = 'registry/tenants';
+const DEFAULT_TENANT_T001 = {
+  id:            'T-001',
+  companyName:   'บริษัทตัวอย่าง จำกัด',
+  driveFolderId: '1ZHm3OvcSrhVYBOPbT-BYu-9sJaw16QC_',
+  fbPath:        'pca',
+};
+let _currentTenant = null;
+
+async function fetchTenantConfig(tenantId) {
+  const id = tenantId.trim().toUpperCase();
+  if (id === 'T-001') return DEFAULT_TENANT_T001;
+  try {
+    const url  = `${REGISTRY_FB_URL}/${REGISTRY_PATH}/${id}.json?auth=${REGISTRY_FB_SECRET}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (!data || data.error) return null;
+    return { id, fbPath: 'pca-' + id.toLowerCase().replace(/[^a-z0-9]/g,'-'), driveFolderId: '', ...data };
+  } catch(e) { return null; }
+}
+
+async function saveTenantConfig(cfg) {
+  const url  = `${REGISTRY_FB_URL}/${REGISTRY_PATH}/${cfg.id}.json?auth=${REGISTRY_FB_SECRET}`;
+  await fetch(url, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(cfg) });
+}
+
+async function fetchAllTenants() {
+  try {
+    const url  = `${REGISTRY_FB_URL}/${REGISTRY_PATH}.json?auth=${REGISTRY_FB_SECRET}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (!data) return [DEFAULT_TENANT_T001];
+    const list = Object.values(data).filter(Boolean);
+    if (!list.find(t=>t.id==='T-001')) list.unshift(DEFAULT_TENANT_T001);
+    return list;
+  } catch(e) { return [DEFAULT_TENANT_T001]; }
+}
+
+function extractDriveFolderId(input) {
+  if (!input) return '';
+  const m = input.match(/folders\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  return input.replace(/\s/g,'');
+}
+
 const CFG_KEY  = 'pca_cfg';
 const LS_TXN   = 'pca_txn';
 const LS_USERS = 'pca_users';
