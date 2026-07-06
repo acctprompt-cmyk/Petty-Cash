@@ -2315,16 +2315,15 @@ function renderTxns() {
         </div>`;
         return `<a href="${t.attachmentUrl}" target="_blank" title="${name}" style="color:var(--primary-g);font-weight:600;font-size:12px;display:block;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📎 ${shortName}</a>`;
       })() : '-'}</td>
-      <td style="min-width:130px;padding-right:18px">${(() => {
+      <td style="min-width:150px;padding-right:18px">${(() => {
         const r = t.receipt || '';
         const tJson = JSON.stringify(JSON.stringify(t));
+        const pvBtn = `<button class="ghost sm" onclick='dlPaymentVoucher(${tJson})' style="white-space:nowrap;display:block;margin-bottom:3px">📄 ใบสำคัญจ่าย</button>`;
         if (r === 'ใบรับรองแทนใบเสร็จรับเงิน')
-          return `<button class="ghost sm" onclick='dlCert(${tJson})' style="white-space:nowrap">📄 ใบรับรอง</button>`;
-        if (r === 'ใบสำคัญจ่าย')
-          return `<button class="ghost sm" onclick='dlPaymentVoucher(${tJson})' style="white-space:nowrap">📄 ใบสำคัญจ่าย</button>`;
+          return pvBtn + `<button class="ghost sm" onclick='dlCert(${tJson})' style="white-space:nowrap;display:block">📄 ใบรับรอง</button>`;
         if (r === 'ใบสำคัญรับ')
-          return `<button class="ghost sm" onclick='dlReceiptVoucher(${tJson})' style="white-space:nowrap">📄 ใบสำคัญรับ</button>`;
-        return r || '-';
+          return pvBtn + `<button class="ghost sm" onclick='dlReceiptVoucher(${tJson})' style="white-space:nowrap;display:block">📄 ใบสำคัญรับ</button>`;
+        return pvBtn + (r && r !== 'ใบสำคัญจ่าย' ? `<span style="font-size:12px;color:var(--text2)">${r}</span>` : '');
       })()}</td>
       <td style="min-width:108px;max-width:130px;padding:8px 6px">
         <div style="display:flex;flex-direction:column;gap:5px">
@@ -4485,10 +4484,8 @@ function dlReceiptVoucher(raw) {
   const t   = JSON.parse(raw);
   const s   = S.settings || DEFAULT_S;
   const fmt = n => new Intl.NumberFormat("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0));
-  const reqUser = S.users.find(u=>u.displayName===t.requester||u.username===t.requester);
   const appUser = S.users.find(u=>u.role==="ผู้อนุมัติ"&&(u.displayName===t.approver||u.username===t.approver))
                || S.users.find(u=>u.role==="ผู้อนุมัติ");
-  const reqSig  = reqUser?.signature||"";
   const appSig  = appUser?.signature||"";
 
   const sigSlot = (id, saved, label) => {
@@ -4504,27 +4501,29 @@ function dlReceiptVoucher(raw) {
     </div>`;
   };
 
-  const totalAmt = Number(t.netPaid||t.amount||0);
-  const totalBaht = String(Math.floor(totalAmt));
+  const totalAmt    = Number(t.netPaid||t.amount||0);
+  const totalBaht   = String(Math.floor(totalAmt));
   const totalSatang = String(Math.round((totalAmt%1)*100)).padStart(2,"0");
-  const dateStr = (t.date||"").split("-");
-  const thaiYear = dateStr[0] ? String(parseInt(dateStr[0])+543) : "";
-  const MONTHS = ["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
-  const ROWS = 10;
-  let tableRows = `<tr><td>${t.description||"-"}</td><td style="text-align:right;border-right:none">${totalBaht}</td><td style="text-align:center;border-left:none">${totalSatang}</td></tr>`;
+  const dateStr     = (t.date||"").split("-");
+  const thaiYear    = dateStr[0] ? String(parseInt(dateStr[0])+543) : "";
+  const MONTHS      = ["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  const ROWS        = 10;
+  let tableRows     = `<tr><td>${t.description||"-"}</td><td style="text-align:right;border-right:none">${totalBaht}</td><td style="text-align:center;border-left:none">${totalSatang}</td></tr>`;
   for(let i=1;i<ROWS;i++) tableRows += `<tr><td>&nbsp;</td><td style="border-right:none">&nbsp;</td><td style="border-left:none">&nbsp;</td></tr>`;
 
-  const addrParts = (t.vendorAddress||"").split(" ");
+  // แยกที่อยู่จาก vendorAddress
+  const addr = t.vendorAddress || "";
+
   const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">
   <title>ใบสำคัญรับ ${t.documentNo||""}</title>
-  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"TH SarabunNew","Sarabun",sans-serif;font-size:14pt;padding:20px 28px;color:#000}.title{text-align:center;font-size:18pt;font-weight:bold;margin-bottom:14px}.underline{border-bottom:1px solid #000;display:inline-block;min-width:200px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #000;padding:4px 8px}th{text-align:center;background:#f5f5f5}.sig-row{display:flex;justify-content:space-around;margin-top:28px}.note{color:#c00;font-size:10pt;margin-top:12px}@media print{body{padding:10px 16px}}</style></head><body>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"TH SarabunNew","Sarabun",sans-serif;font-size:14pt;padding:20px 28px;color:#000}.title{text-align:center;font-size:18pt;font-weight:bold;margin-bottom:14px}.underline{border-bottom:1px solid #000;display:inline-block;min-width:200px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #000;padding:4px 8px}th{text-align:center;background:#f5f5f5}.sig-row{display:flex;justify-content:center;margin-top:28px}.note{color:#c00;font-size:10pt;margin-top:12px}@media print{body{padding:10px 16px}}</style></head><body>
   <div class="title">ใบสำคัญรับเงิน</div>
   <div style="text-align:right">ที่<span class="underline" style="min-width:80px">&nbsp;${t.documentNo||""}&nbsp;</span></div>
   <div style="text-align:right;margin-bottom:8px">วันที่<span class="underline" style="min-width:40px">&nbsp;${dateStr[2]||""}&nbsp;</span>เดือน<span class="underline" style="min-width:80px">&nbsp;${MONTHS[parseInt(dateStr[1]||0)]||""}&nbsp;</span>พ.ศ.<span class="underline" style="min-width:60px">&nbsp;${thaiYear}&nbsp;</span></div>
   <div style="margin:5px 0">ข้าพเจ้า<span class="underline" style="min-width:280px">&nbsp;${t.vendor||t.requester||""}&nbsp;</span>(ผู้ขายสินค้า/ให้บริการ)</div>
-  <div style="margin:5px 0">เลขประจำตัวผู้เสียภาษี<span class="underline" style="min-width:180px">&nbsp;${t.vendorTax||""}&nbsp;</span>อยู่บ้านเลขที่<span class="underline" style="min-width:50px">&nbsp;&nbsp;</span>หมู่<span class="underline" style="min-width:30px">&nbsp;&nbsp;</span></div>
+  <div style="margin:5px 0">เลขประจำตัวผู้เสียภาษี<span class="underline" style="min-width:160px">&nbsp;${t.vendorTax||""}&nbsp;</span>อยู่บ้านเลขที่<span class="underline" style="min-width:60px">&nbsp;&nbsp;</span>หมู่<span class="underline" style="min-width:30px">&nbsp;&nbsp;</span></div>
   <div style="margin:5px 0">ถนน<span class="underline" style="min-width:100px">&nbsp;&nbsp;</span>แขวง/ตำบล<span class="underline" style="min-width:80px">&nbsp;&nbsp;</span>เขต/อำเภอ<span class="underline" style="min-width:80px">&nbsp;&nbsp;</span></div>
-  <div style="margin:5px 0">จังหวัด<span class="underline" style="min-width:100px">&nbsp;${t.vendorAddress||""}&nbsp;</span></div>
+  <div style="margin:5px 0">จังหวัด<span class="underline" style="min-width:100px">&nbsp;${addr}&nbsp;</span></div>
   <div style="margin-top:8px;margin-bottom:4px">ได้รับเงินจาก<span class="underline" style="min-width:180px">&nbsp;${s.companyName||""}&nbsp;</span>(ผู้ซื้อ/ผู้รับบริการ) ดังรายการต่อไปนี้</div>
   <table>
     <thead>
@@ -4536,8 +4535,7 @@ function dlReceiptVoucher(raw) {
   </table>
   <div style="margin:5px 0">จำนวนเงิน(อักษร)<span class="underline" style="min-width:300px">&nbsp;${thbText(totalAmt)}&nbsp;</span></div>
   <div class="sig-row">
-    ${sigSlot("rv_receiver",reqSig,"ผู้รับเงิน")}
-    ${sigSlot("rv_payer",appSig,"ผู้จ่ายเงิน")}
+    ${sigSlot("rv_payer", appSig, "ผู้จ่ายเงิน")}
   </div>
   <div class="note">หมายเหตุ แนบสำเนาบัตรประจำตัวประชาชนผู้รับเงิน (ซึ่งเป็นผู้ประกอบอาชีพขายสินค้า/ให้บริการอย่างแท้จริง)</div>
   <script>function loadSig2(id,input){const file=input.files[0];if(!file)return;const r=new FileReader();r.onload=e=>{const img=document.getElementById("img_"+id);if(img){img.src=e.target.result;img.style.display="block";}const lbl=input.previousElementSibling;if(lbl&&lbl.tagName==="LABEL")lbl.style.display="none";};r.readAsDataURL(file);}<\/script>
