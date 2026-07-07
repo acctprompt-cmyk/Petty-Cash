@@ -4418,7 +4418,7 @@ function dlPaymentVoucher(raw) {
   const appSig  = appUser?.signature||"";
   const paySig  = payUser?.signature||"";
 
-  const sigSlot = (id, saved, label) => {
+  const sigSlot = (id, saved, label, name='') => {
     const imgPart = saved
       ? `<img src="${saved}" style="max-height:68px;max-width:170px;object-fit:contain">`
       : `<label for="file_${id}" style="cursor:pointer;font-size:11px;color:#2563eb;border:1.5px dashed #93c5fd;border-radius:6px;padding:4px 10px">📁 เลือกลายเซ็น</label>
@@ -4427,7 +4427,7 @@ function dlPaymentVoucher(raw) {
     return `<div style="text-align:center;min-width:160px">
       <div style="min-height:72px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #000;margin-bottom:4px">${imgPart}</div>
       <div style="font-size:12px">ลงชื่อ...................................................(${label})</div>
-      <div style="font-size:11px;color:#555">(............................................)</div>
+      <div style="font-size:11px;color:#555">(${name||'............................................'})</div>
     </div>`;
   };
 
@@ -4470,9 +4470,13 @@ function dlPaymentVoucher(raw) {
   </table>
   <div style="margin:5px 0">ตัวอักษร(<span class="underline" style="min-width:340px">&nbsp;${thbText(net)}&nbsp;</span>)</div>
   <div class="sig-row">
-    ${sigSlot("pv_receiver",reqSig,"ผู้รับเงิน")}
-    ${sigSlot("pv_payer",paySig,"ผู้จ่ายเงิน")}
-    ${sigSlot("pv_approver",appSig,"ผู้อนุมัติ")}
+    <div style="text-align:center;min-width:160px">
+      <div style="min-height:72px;border-bottom:1px solid #000;margin-bottom:4px"></div>
+      <div style="font-size:12px">ลงชื่อ...................................................(ผู้รับเงิน)</div>
+      <div style="font-size:11px;color:#555">(............................................)</div>
+    </div>
+    ${sigSlot("pv_payer",paySig,"ผู้จ่ายเงิน",payUser?.displayName||'')}
+    ${sigSlot("pv_approver",appSig,"ผู้อนุมัติ",appUser?.displayName||'')}
   </div>
   <script>function loadSig2(id,input){const file=input.files[0];if(!file)return;const r=new FileReader();r.onload=e=>{const img=document.getElementById("img_"+id);if(img){img.src=e.target.result;img.style.display="block";}const lbl=input.previousElementSibling;if(lbl&&lbl.tagName==="LABEL")lbl.style.display="none";};r.readAsDataURL(file);}<\/script>
   </body></html>`;
@@ -4563,7 +4567,7 @@ function dlReceiptVoucher(raw) {
       ${payerSigHtml}
     </div>
     ลงชื่อ<span class="ul" style="min-width:180px">&nbsp;&nbsp;</span>ผู้จ่ายเงิน<br>
-    (<span class="ul" style="min-width:220px">&nbsp;&nbsp;</span>)
+    (${appUser?.displayName ? `<span style="font-size:12pt">${appUser.displayName}</span>` : '<span class="ul" style="min-width:220px">&nbsp;&nbsp;</span>'})
   </div>
 </div>
 
