@@ -2801,6 +2801,7 @@ async function saveTxMulti() {
       requester: req, approver: S.settings?.approver||'',
       receipt, status: 'รออนุมัติ', docReceived: docRcv,
       note, vendor, vendorTax,
+      vendorAddress: document.getElementById('f_vendor_address')?.value.trim()||'',
       attachmentUrl: attachmentUrl || (useExisting ? (existing.attachmentUrl||'') : ''),
       attachmentName: attachmentName || (useExisting ? (existing.attachmentName||'') : ''),
     };
