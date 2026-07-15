@@ -4431,85 +4431,118 @@ function dlCert(raw){
 
 // ── ใบสำคัญจ่าย (Payment Voucher) ──
 function dlPaymentVoucher(raw) {
-  const t   = JSON.parse(raw);
-  const s   = S.settings || DEFAULT_S;
-  const fmt = n => new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0));
+  const t      = JSON.parse(raw);
+  const s      = S.settings || DEFAULT_S;
+  const fmt    = n => new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0));
   const reqUser = S.users.find(u=>u.displayName===t.requester||u.username===t.requester);
   const appUser = S.users.find(u=>u.role==="ผู้อนุมัติ"&&(u.displayName===t.approver||u.username===t.approver))
                || S.users.find(u=>u.role==="ผู้อนุมัติ");
   const payUser = S.users.find(u=>u.role==="แอดมิน") || appUser;
-  const reqSig  = reqUser?.signature||"";
   const appSig  = appUser?.signature||"";
   const paySig  = payUser?.signature||"";
+  const appName = appUser?.displayName||appUser?.username||"";
+  const payName = payUser?.displayName||payUser?.username||"";
 
-  const sigSlot = (id, saved, label, name='') => {
+  const sigSlot = (id, saved, label, name) => {
     const imgPart = saved
-      ? `<img src="${saved}" style="max-height:68px;max-width:170px;object-fit:contain">`
-      : `<label for="file_${id}" style="cursor:pointer;font-size:11px;color:#2563eb;border:1.5px dashed #93c5fd;border-radius:6px;padding:4px 10px">📁 เลือกลายเซ็น</label>
-         <input type="file" id="file_${id}" accept="image/*" style="display:none" onchange="loadSig2('${id}',this)">
-         <img id="img_${id}" src="" style="max-height:68px;display:none">`;
-    return `<div style="text-align:center;min-width:160px">
-      <div style="min-height:72px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #000;margin-bottom:4px">${imgPart}</div>
-      <div style="font-size:12px">ลงชื่อ...................................................(${label})</div>
-      <div style="font-size:11px;color:#555">(${name||'............................................'})</div>
+      ? `<img src="${saved}" style="max-height:68px;max-width:200px;object-fit:contain;display:block;margin:0 auto">`
+      : `<div style="text-align:center"><img id="img_${id}" src="" style="max-height:68px;display:none;margin:0 auto 4px">
+         <label for="file_${id}" style="display:inline-block;padding:5px 14px;background:#f0f4ff;border:1.5px dashed #93c5fd;border-radius:6px;cursor:pointer;font-size:12px;color:#2563eb;font-family:inherit">📁 เลือกลายเซ็น</label>
+         <input type="file" id="file_${id}" accept="image/*" style="display:none" onchange="loadSig2(\'${id}\',this)"></div>`;
+    return `<div style="text-align:center;flex:1">
+      <div style="min-height:72px;display:flex;align-items:center;justify-content:center;margin-bottom:4px">${imgPart}</div>
+      <div class="sig-line">ลงชื่อ...................................................(${label})</div>
+      <div style="font-size:13px">(${name||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'})</div>
     </div>`;
   };
 
-  const net = Number(t.netPaid||t.amount||0);
-  const ROWS = 6;
-  let tableRows = `<tr><td style="text-align:center">1</td><td>${t.description||"-"}</td><td style="text-align:right">${fmt(Number(t.beforeVat||t.amount||0))}</td><td style="text-align:right"></td></tr>`;
+  const net    = Number(t.netPaid||t.amount||0);
+  const amt    = Number(t.beforeVat||t.amount||0);
+  const vat    = Number(t.vatAmount||0);
+  const wht    = Number(t.whtAmount||0);
+  const pm     = t.paymentMethod||"";
+  const ROWS   = 6;
+  let tableRows = `<tr><td style="text-align:center">1</td><td>${t.description||"-"}</td><td style="text-align:right">${fmt(amt)}</td><td>&nbsp;</td></tr>`;
   for(let i=1;i<ROWS;i++) tableRows += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
+  const vendorAddr = document.getElementById("pv_addr_input")?.value || t.vendorAddress||t.vendor_address||"";
 
-  const payMethod = t.paymentMethod || "";
-  const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">
-  <title>ใบสำคัญจ่าย ${t.documentNo||""}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Sarabun",sans-serif;font-size:14pt;padding:20px 28px;color:#000}.title{text-align:center;font-size:18pt;font-weight:bold;margin-bottom:12px}.underline{border-bottom:1px solid #000;display:inline-block;min-width:200px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #000;padding:4px 8px}th{background:#f5f5f5;text-align:center}.sig-row{display:flex;justify-content:space-between;margin-top:28px;gap:12px}@media print{body{padding:10px 16px}}</style></head><body>
-  <div class="title">ใบสำคัญจ่าย</div>
-  <div style="text-align:right">
-    <div>เลขที่<span class="underline" style="min-width:200px">&nbsp;${t.documentNo||""}&nbsp;</span></div>
-    <div>วันที่<span class="underline" style="min-width:200px">&nbsp;${formatThaiDate(t.date)}&nbsp;</span></div>
+  const html = `<!DOCTYPE html>
+<html lang="th"><head><meta charset="UTF-8">
+<title>ใบสำคัญจ่าย — ${t.documentNo||""}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Sarabun',sans-serif;font-size:15px;color:#111;background:#fff}
+  .page{width:780px;margin:0 auto;padding:28px 36px 36px;border:1px solid #ccc}
+  .hd-title{text-align:center;font-size:20px;font-weight:700;margin-bottom:10px}
+  .dl{display:inline-block;vertical-align:bottom;margin:0 4px;border-bottom:1px solid #333}
+  .dl-lg{min-width:260px} .dl-md{min-width:140px} .dl-sm{min-width:80px}
+  table.items{width:100%;border-collapse:collapse;margin:10px 0}
+  table.items th{border:1px solid #333;padding:5px 8px;font-size:15px;font-weight:700;text-align:center}
+  table.items td{border:1px solid #333;padding:4px 8px;font-size:15px;height:26px}
+  td.num{text-align:right}
+  .sig-line{font-size:15px;line-height:2.2}
+  .sig-row{display:flex;gap:12px;margin-top:16px;justify-content:space-between}
+  @media print{
+    .no-print{display:none!important}
+    body{background:#fff}
+    .page{width:100%;padding:10px 18px;border:none}
+    label[for^="file_"],input[type="file"]{display:none!important}
+    table.items td{height:20px!important}
+    @page{size:A4 portrait;margin:10mm 14mm}
+  }
+</style></head><body>
+<div class="page">
+  <div class="hd-title">ใบสำคัญจ่าย</div>
+  <div style="text-align:right;font-size:14px;margin-bottom:12px;line-height:1.8">
+    เลขที่&nbsp;&nbsp;${t.documentNo||""}<br>
+    วันที่&nbsp;&nbsp;${formatThaiDate(t.date)}
   </div>
-  <div style="margin:5px 0">จ่ายให้<span class="underline" style="min-width:360px">&nbsp;${t.vendor||t.requester||""}&nbsp;</span></div>
-  <div style="margin:5px 0;display:flex;align-items:center;gap:6px">ที่อยู่
-    <input id="pv_addr_input" value="${t.vendorAddress||t.vendor_address||''}" 
-      placeholder="กรอกที่อยู่ผู้จำหน่าย"
-      style="flex:1;border:none;border-bottom:1px solid #000;outline:none;font-size:14pt;font-family:inherit;padding:0 4px"
-      onkeyup="document.getElementById('pv_addr_display').textContent=this.value">
+  <div style="font-size:15px;line-height:2">
+    <div>จ่ายให้ <span class="dl dl-lg">${t.vendor||t.requester||""}</span></div>
+    <div>ที่อยู่ <span class="dl" style="min-width:380px">${t.vendorAddress||t.vendor_address||""}</span></div>
+    <div>เลขประจำตัวผู้เสียภาษี <span class="dl dl-lg">${t.vendorTax||t.vendor_tax||""}</span></div>
   </div>
-  <div style="margin:5px 0">เลขประจำตัวผู้เสียภาษี<span class="underline" style="min-width:280px">&nbsp;${t.vendorTax||t.vendor_tax||""}&nbsp;</span></div>
-  <table>
-    <thead><tr><th style="width:10%">ลำดับที่</th><th>รายการ</th><th style="width:20%">จำนวนเงิน (บาท)</th><th style="width:10%">สต.</th></tr></thead>
+  <table class="items">
+    <thead><tr>
+      <th style="width:10%">ลำดับที่</th>
+      <th>รายการ</th>
+      <th style="width:22%">จำนวนเงิน (บาท)</th>
+      <th style="width:8%">สต.</th>
+    </tr></thead>
     <tbody>${tableRows}</tbody>
     <tfoot>
       <tr>
-        <td colspan="2" style="border:1px solid #000">
-          <b>การชำระเงิน</b><br>
-          <label><input type="checkbox" ${payMethod==="cash"?"checked":""}> เงินสด/Cash</label><br>
-          <label><input type="checkbox" ${payMethod==="bank"?"checked":""}> โอนเงิน/Bank</label><br>
-          <label><input type="checkbox" ${payMethod==="cheque"?"checked":""}> เช็คธนาคาร/Bank<span style="margin-left:8px">..................เลขที่..........ลงวันที่.....</span></label>
+        <td colspan="2" style="border:1px solid #333;padding:5px 8px;vertical-align:top">
+          <div style="font-weight:700;margin-bottom:4px">การชำระเงิน</div>
+          <div><label><input type="checkbox" ${pm==="cash"?"checked":""}> เงินสด/Cash</label></div>
+          <div><label><input type="checkbox" ${pm==="bank"?"checked":""}> โอนเงิน/Bank</label></div>
+          <div><label><input type="checkbox" ${pm==="cheque"?"checked":""}> เช็คธนาคาร/Bank <span style="font-size:13px">....................เลขที่..........ลงวันที่.....</span></label></div>
         </td>
-        <td colspan="2" style="text-align:right;vertical-align:top;border:1px solid #000">
-          <b>รวม</b><br>${fmt(Number(t.beforeVat||t.amount||0))}<br>
-          ${t.vatAmount?`VAT ${fmt(t.vatAmount)}<br>`:""}
-          ${t.whtAmount?`หัก ณ ที่จ่าย (${fmt(t.whtAmount)})<br>`:""}
-          <b>สุทธิ ${fmt(net)}</b>
+        <td colspan="2" style="border:1px solid #333;padding:5px 8px;text-align:right;vertical-align:top">
+          <div>รวม</div>
+          <div>${fmt(amt)}</div>
+          ${vat ? `<div>VAT ${fmt(vat)}</div>` : ""}
+          ${wht ? `<div>หัก ณ ที่จ่าย (${fmt(wht)})</div>` : ""}
+          <div style="font-weight:700">สุทธิ ${fmt(net)}</div>
         </td>
       </tr>
     </tfoot>
   </table>
-  <div style="margin:5px 0">ตัวอักษร(<span class="underline" style="min-width:340px">&nbsp;${thbText(net)}&nbsp;</span>)</div>
+  <div style="font-size:15px;margin-top:6px">ตัวอักษร( <span class="dl" style="min-width:320px">${thbText(net)}</span> )</div>
   <div class="sig-row">
-    <div style="text-align:center;min-width:160px">
-      <div style="min-height:72px;border-bottom:1px solid #000;margin-bottom:4px"></div>
-      <div style="font-size:12px">ลงชื่อ...................................................(ผู้รับเงิน)</div>
-      <div style="font-size:11px;color:#555">(............................................)</div>
+    <div style="text-align:center;flex:1">
+      <div style="min-height:72px;margin-bottom:4px"></div>
+      <div class="sig-line">ลงชื่อ...................................................(ผู้รับเงิน)</div>
+      <div style="font-size:13px">(&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)</div>
     </div>
-    ${sigSlot("pv_payer",paySig,"ผู้จ่ายเงิน",payUser?.displayName||'')}
-    ${sigSlot("pv_approver",appSig,"ผู้อนุมัติ",appUser?.displayName||'')}
+    ${sigSlot("pv_payer",paySig,"ผู้จ่ายเงิน",payName)}
+    ${sigSlot("pv_approver",appSig,"ผู้อนุมัติ",appName)}
   </div>
-  <script>function loadSig2(id,input){const file=input.files[0];if(!file)return;const r=new FileReader();r.onload=e=>{const img=document.getElementById("img_"+id);if(img){img.src=e.target.result;img.style.display="block";}const lbl=input.previousElementSibling;if(lbl&&lbl.tagName==="LABEL")lbl.style.display="none";};r.readAsDataURL(file);}<\/script>
-  </body></html>`;
+</div>
+<script>function loadSig2(id,input){const file=input.files[0];if(!file)return;const r=new FileReader();r.onload=e=>{const img=document.getElementById("img_"+id);if(img){img.src=e.target.result;img.style.display="block";}const lbl=input.previousElementSibling;if(lbl&&lbl.tagName==="LABEL")lbl.style.display="none";};r.readAsDataURL(file);}<\/script>
+</body></html>`;
   showCertModal(html);
 }
 
@@ -4517,9 +4550,11 @@ function dlPaymentVoucher(raw) {
 function dlReceiptVoucher(raw) {
   const t      = JSON.parse(raw);
   const s      = S.settings || DEFAULT_S;
+  const fmt    = n => new Intl.NumberFormat('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(n||0));
   const appUser = S.users.find(u=>u.role==="ผู้อนุมัติ"&&(u.displayName===t.approver||u.username===t.approver))
-                || S.users.find(u=>u.role==="ผู้อนุมัติ");
+               || S.users.find(u=>u.role==="ผู้อนุมัติ");
   const appSig  = appUser?.signature||"";
+  const appName = appUser?.displayName||appUser?.username||"";
 
   const totalAmt    = Number(t.netPaid||t.amount||0);
   const totalBaht   = String(Math.floor(totalAmt));
@@ -4528,85 +4563,90 @@ function dlReceiptVoucher(raw) {
   const thaiYear    = dateStr[0] ? String(parseInt(dateStr[0])+543) : "";
   const MONTHS      = ["","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
   const ROWS        = 10;
-  let tableRows = `<tr><td>${t.description||"-"}</td><td style="text-align:right;border-right:none">${totalBaht}</td><td style="text-align:center;border-left:none">${totalSatang}</td></tr>`;
+  let tableRows     = `<tr><td>${t.description||"-"}</td><td style="text-align:right;border-right:none">${totalBaht}</td><td style="text-align:center;border-left:none">${totalSatang}</td></tr>`;
   for(let i=1;i<ROWS;i++) tableRows += `<tr><td>&nbsp;</td><td style="border-right:none">&nbsp;</td><td style="border-left:none">&nbsp;</td></tr>`;
 
   const payerSigHtml = appSig
-    ? `<img src="${appSig}" style="max-height:60px;max-width:200px;object-fit:contain">`
-    : `<label for="file_rv_payer" style="cursor:pointer;font-size:11px;color:#2563eb;border:1.5px dashed #93c5fd;border-radius:6px;padding:3px 10px">📁 เลือกลายเซ็น</label>
-       <input type="file" id="file_rv_payer" accept="image/*" style="display:none" onchange="loadSig2('rv_payer',this)">
-       <img id="img_rv_payer" src="" style="max-height:60px;display:none">`;
+    ? `<img src="${appSig}" style="max-height:68px;max-width:200px;object-fit:contain;display:block;margin:0 auto">`
+    : `<div style="text-align:center"><img id="img_rv_payer" src="" style="max-height:68px;display:none;margin:0 auto 4px">
+       <label for="file_rv_payer" style="display:inline-block;padding:5px 14px;background:#f0f4ff;border:1.5px dashed #93c5fd;border-radius:6px;cursor:pointer;font-size:12px;color:#2563eb;font-family:inherit">📁 เลือกลายเซ็น</label>
+       <input type="file" id="file_rv_payer" accept="image/*" style="display:none" onchange="loadSig2('rv_payer',this)"></div>`;
 
-  const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">
-<title>ใบสำคัญรับ ${t.documentNo||""}</title>
+  const html = `<!DOCTYPE html>
+<html lang="th"><head><meta charset="UTF-8">
+<title>ใบสำคัญรับเงิน — ${t.documentNo||""}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:"Sarabun",sans-serif;font-size:15pt;padding:24px 36px;color:#000;line-height:1.6}
-  .title{text-align:center;font-size:20pt;font-weight:bold;margin-bottom:8px}
-  .ul{border-bottom:1px solid #000;display:inline-block}
-  table{width:100%;border-collapse:collapse;margin:8px 0}
-  th,td{border:1px solid #000;padding:3px 8px}
-  th{text-align:center;font-weight:normal}
-  .note{color:#c00;font-size:9pt;margin-top:16px;font-weight:bold}
-  @media print{body{padding:14px 24px}}
+  body{font-family:'Sarabun',sans-serif;font-size:15px;color:#111;background:#fff}
+  .page{width:780px;margin:0 auto;padding:28px 36px 36px;border:1px solid #ccc}
+  .hd-title{text-align:center;font-size:20px;font-weight:700;margin-bottom:10px}
+  .dl{display:inline-block;vertical-align:bottom;margin:0 4px;border-bottom:1px solid #333}
+  .dl-lg{min-width:260px} .dl-md{min-width:140px} .dl-sm{min-width:60px}
+  table.items{width:100%;border-collapse:collapse;margin:10px 0}
+  table.items th{border:1px solid #333;padding:5px 8px;font-size:15px;font-weight:700;text-align:center}
+  table.items td{border:1px solid #333;padding:4px 8px;font-size:15px;height:26px}
+  td.num{text-align:right}
+  .sig-line{font-size:15px;line-height:2.2}
+  .note{color:#c00;font-size:12px;font-weight:700;margin-top:12px;text-decoration:underline}
+  @media print{
+    .no-print{display:none!important}
+    body{background:#fff}
+    .page{width:100%;padding:10px 18px;border:none}
+    label[for^="file_"],input[type="file"]{display:none!important}
+    table.items td{height:20px!important}
+    @page{size:A4 portrait;margin:10mm 14mm}
+  }
 </style></head><body>
-<div class="title">ใบสำคัญรับเงิน</div>
-
-<div style="text-align:right">ที่<span class="ul" style="min-width:240px">&nbsp;${t.documentNo||""}&nbsp;</span></div>
-<div style="text-align:right;margin-bottom:6px">
-  วันที่<span class="ul" style="min-width:28px">&nbsp;${dateStr[2]||""}&nbsp;</span>
-  เดือน<span class="ul" style="min-width:88px">&nbsp;${MONTHS[parseInt(dateStr[1]||0)]||""}&nbsp;</span>
-  พ.ศ.<span class="ul" style="min-width:52px">&nbsp;${thaiYear}&nbsp;</span>
-</div>
-
-<div>ข้าพเจ้า<span class="ul" style="min-width:360px">&nbsp;${t.vendor||t.requester||""}&nbsp;</span>(ผู้ขายสินค้า/ให้บริการ)</div>
-<div>เลขประจำตัวผู้เสียภาษี<span class="ul" style="min-width:180px">&nbsp;${t.vendorTax||t.vendor_tax||""}&nbsp;</span>ที่อยู่<input id="rv_addr_input" value="${t.vendorAddress||t.vendor_address||''}" placeholder="กรอกที่อยู่" style="border:none;border-bottom:1px solid #000;outline:none;font-size:14pt;font-family:inherit;min-width:180px;padding:0 4px"></div>
-<div>ได้รับเงินจาก <span style="text-decoration:underline">&nbsp;${s.companyName||""}&nbsp;</span> (ผู้ซื้อ/ผู้รับบริการ) ดังรายการต่อไปนี้</div>
-
-<table>
-  <thead>
-    <tr>
-      <th rowspan="2" style="background:#fff;color:#c00;text-decoration:underline;font-weight:bold">รายการ</th>
-      <th colspan="2">จำนวนเงิน</th>
-    </tr>
-    <tr>
-      <th style="width:80px">บาท</th>
-      <th style="width:50px">สต.</th>
-    </tr>
-  </thead>
-  <tbody>${tableRows}</tbody>
-  <tfoot>
-    <tr>
-      <td style="text-align:right"><b>รวมเป็นเงิน</b></td>
-      <td style="text-align:right"><b>${totalBaht}</b></td>
-      <td style="text-align:center"><b>${totalSatang}</b></td>
-    </tr>
-  </tfoot>
-</table>
-
-<div style="margin-top:8px">จำนวนเงิน(อักษร)<span class="ul" style="min-width:340px">&nbsp;${thbText(totalAmt)}&nbsp;</span></div>
-
-<div style="text-align:right;margin-top:28px">
-  ลงชื่อ<span class="ul" style="min-width:220px">&nbsp;&nbsp;&nbsp;</span><span style="color:#c00">ผู้รับเงิน</span><br>
-  <span style="display:inline-block;min-width:280px;text-align:center">(<span class="ul" style="min-width:220px">&nbsp;&nbsp;</span>)</span>
-</div>
-
-<div style="text-align:right;margin-top:32px">
-  <div style="display:inline-block;min-width:280px;text-align:center">
-    <div style="min-height:60px;display:flex;align-items:center;justify-content:center;margin-bottom:2px">
-      ${payerSigHtml}
-    </div>
-    ลงชื่อ<span class="ul" style="min-width:180px">&nbsp;&nbsp;</span>ผู้จ่ายเงิน<br>
-    (${appUser?.displayName ? `<span style="font-size:12pt">${appUser.displayName}</span>` : '<span class="ul" style="min-width:220px">&nbsp;&nbsp;</span>'})
+<div class="page">
+  <div class="hd-title">ใบสำคัญรับเงิน</div>
+  <div style="text-align:right;font-size:14px;margin-bottom:12px;line-height:1.8">
+    ที่&nbsp;&nbsp;${t.documentNo||""}<br>
+    วันที่<span class="dl dl-sm">${dateStr[2]||""}</span>เดือน<span class="dl dl-md">${MONTHS[parseInt(dateStr[1]||0)]||""}</span>พ.ศ.<span class="dl dl-sm">${thaiYear}</span>
   </div>
-</div>
+  <div style="font-size:15px;line-height:2">
+    <div>ข้าพเจ้า <span class="dl dl-lg">${t.vendor||t.requester||""}</span> (ผู้ขายสินค้า/ให้บริการ)</div>
+    <div>เลขประจำตัวผู้เสียภาษี <span class="dl dl-lg">${t.vendorTax||t.vendor_tax||""}</span> ที่อยู่ <span class="dl" style="min-width:180px">${t.vendorAddress||t.vendor_address||""}</span></div>
+    <div>ได้รับเงินจาก <span class="dl dl-lg" style="text-decoration:underline">${s.companyName||""}</span> (ผู้ซื้อ/ผู้รับบริการ) ดังรายการต่อไปนี้</div>
+  </div>
+  <table class="items">
+    <thead>
+      <tr><th rowspan="2" style="color:#c00;text-decoration:underline">รายการ</th><th colspan="2">จำนวนเงิน</th></tr>
+      <tr><th style="width:90px">บาท</th><th style="width:60px">สต.</th></tr>
+    </thead>
+    <tbody>${tableRows}</tbody>
+    <tfoot>
+      <tr>
+        <td style="text-align:right;font-weight:700">รวมเป็นเงิน</td>
+        <td style="text-align:right;font-weight:700;border-right:none">${totalBaht}</td>
+        <td style="text-align:center;font-weight:700;border-left:none">${totalSatang}</td>
+      </tr>
+    </tfoot>
+  </table>
+  <div style="font-size:15px;margin-top:6px">จำนวนเงิน(อักษร) <span class="dl" style="min-width:340px">${thbText(totalAmt)}</span></div>
 
-<div class="note">หมายเหตุ แนบสำเนาบัตรประจำตัวประชาชนผู้รับเงิน (ซึ่งเป็นผู้ประกอบอาชีพขายสินค้า/ให้บริการอย่างแท้จริง)</div>
+  <div style="text-align:right;margin-top:24px">
+    <div style="display:inline-block;min-width:280px;text-align:center">
+      <div style="min-height:68px;margin-bottom:4px"></div>
+      <div class="sig-line">ลงชื่อ...................................................<span style="color:#c00">ผู้รับเงิน</span></div>
+      <div style="font-size:13px">(&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)</div>
+    </div>
+  </div>
+  <div style="text-align:right;margin-top:20px">
+    <div style="display:inline-block;min-width:280px;text-align:center">
+      <div style="min-height:68px;display:flex;align-items:center;justify-content:center;margin-bottom:4px">${payerSigHtml}</div>
+      <div class="sig-line">ลงชื่อ...................................................ผู้จ่ายเงิน</div>
+      <div style="font-size:13px">(${appName||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'})</div>
+    </div>
+  </div>
+  <div class="note">หมายเหตุ แนบสำเนาบัตรประจำตัวประชาชนผู้รับเงิน (ซึ่งเป็นผู้ประกอบอาชีพขายสินค้า/ให้บริการอย่างแท้จริง)</div>
+</div>
 <script>function loadSig2(id,input){const file=input.files[0];if(!file)return;const r=new FileReader();r.onload=e=>{const img=document.getElementById("img_"+id);if(img){img.src=e.target.result;img.style.display="block";}const lbl=input.previousElementSibling;if(lbl&&lbl.tagName==="LABEL")lbl.style.display="none";};r.readAsDataURL(file);}<\/script>
 </body></html>`;
   showCertModal(html);
 }
+
 
 // ══════════════════════════════════════════════════════
 //  DASHBOARD
