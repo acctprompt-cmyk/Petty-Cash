@@ -4463,7 +4463,8 @@ function dlPaymentVoucher(raw) {
   const payMethod = t.paymentMethod || "";
   const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">
   <title>ใบสำคัญจ่าย ${t.documentNo||""}</title>
-  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"TH SarabunNew","Sarabun",sans-serif;font-size:14pt;padding:20px 28px;color:#000}.title{text-align:center;font-size:18pt;font-weight:bold;margin-bottom:12px}.underline{border-bottom:1px solid #000;display:inline-block;min-width:200px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #000;padding:4px 8px}th{background:#f5f5f5;text-align:center}.sig-row{display:flex;justify-content:space-between;margin-top:28px;gap:12px}@media print{body{padding:10px 16px}}</style></head><body>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:"Sarabun",sans-serif;font-size:14pt;padding:20px 28px;color:#000}.title{text-align:center;font-size:18pt;font-weight:bold;margin-bottom:12px}.underline{border-bottom:1px solid #000;display:inline-block;min-width:200px}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #000;padding:4px 8px}th{background:#f5f5f5;text-align:center}.sig-row{display:flex;justify-content:space-between;margin-top:28px;gap:12px}@media print{body{padding:10px 16px}}</style></head><body>
   <div class="title">ใบสำคัญจ่าย</div>
   <div style="text-align:right">
     <div>เลขที่<span class="underline" style="min-width:200px">&nbsp;${t.documentNo||""}&nbsp;</span></div>
@@ -4538,9 +4539,10 @@ function dlReceiptVoucher(raw) {
 
   const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">
 <title>ใบสำคัญรับ ${t.documentNo||""}</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:"TH SarabunNew","Sarabun",sans-serif;font-size:15pt;padding:24px 36px;color:#000;line-height:1.6}
+  body{font-family:"Sarabun",sans-serif;font-size:15pt;padding:24px 36px;color:#000;line-height:1.6}
   .title{text-align:center;font-size:20pt;font-weight:bold;margin-bottom:8px}
   .ul{border-bottom:1px solid #000;display:inline-block}
   table{width:100%;border-collapse:collapse;margin:8px 0}
