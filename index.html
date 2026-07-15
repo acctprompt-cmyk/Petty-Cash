@@ -1583,8 +1583,10 @@ function initDriveAuth() {
 }
 
 async function _setupDriveAuth() {
-  // ลอง restore token จาก localStorage — ผูกกับ tenant
-  const tenantId   = _currentTenant?.id || 'T-001';
+  const tenantId = _currentTenant?.id || 'T-001';
+  const fbPath   = _currentTenant?.fbPath || 'pca';
+
+  // 1) ลอง restore จาก localStorage ก่อน (เร็วที่สุด)
   const saved      = localStorage.getItem('pca_drive_token_' + tenantId);
   const exp        = parseInt(localStorage.getItem('pca_drive_exp_' + tenantId) || '0');
   const savedEmail = localStorage.getItem('pca_drive_email_' + tenantId) || '';
@@ -1592,13 +1594,25 @@ async function _setupDriveAuth() {
     _driveToken    = saved;
     _driveTokenExp = exp;
     updateDriveBadge(true, savedEmail);
-    startDriveTokenRefresh(); // เริ่ม auto refresh
+    startDriveTokenRefresh();
     return;
   }
-  // ถ้า token หมดหรือว่าง — ดึง email ที่ผูกไว้จาก Firebase แสดงให้รู้ว่าต้อง login Google account ใด
+
+  // 2) ดึงจาก Firebase (แชร์ระหว่าง user ในบริษัทเดียวกัน)
   try {
-    const fbPath = (_currentTenant?.fbPath || 'pca');
     const driveConfig = await fbGet(fbPath + '/driveConfig');
+    if (driveConfig?.token && driveConfig?.exp && Date.now() < driveConfig.exp) {
+      _driveToken    = driveConfig.token;
+      _driveTokenExp = driveConfig.exp;
+      // sync ลง localStorage ด้วย
+      localStorage.setItem('pca_drive_token_' + tenantId, _driveToken);
+      localStorage.setItem('pca_drive_exp_'   + tenantId, String(_driveTokenExp));
+      localStorage.setItem('pca_drive_email_' + tenantId, driveConfig.email || '');
+      updateDriveBadge(true, driveConfig.email || '');
+      startDriveTokenRefresh();
+      return;
+    }
+    // token หมดแต่มี email — แสดงให้รู้ว่าต้อง login account ใด
     if (driveConfig?.email) {
       localStorage.setItem('pca_drive_email_' + tenantId, driveConfig.email);
       updateDriveBadge(false, driveConfig.email);
@@ -1643,16 +1657,18 @@ function requestDriveToken() {
           return;
         }
 
-        // บันทึกลง localStorage + Firebase (ไม่หายแม้ clear cache)
+        // บันทึกลง localStorage + Firebase (แชร์ให้ทุก user ในบริษัท)
         localStorage.setItem('pca_drive_token_' + tenantId, _driveToken);
         localStorage.setItem('pca_drive_exp_'   + tenantId, _driveTokenExp.toString());
         localStorage.setItem('pca_drive_email_' + tenantId, userEmail);
-        // บันทึก email ลง Firebase เพื่อ restore ได้แม้ clear cache
-        const fbPath = (_currentTenant?.fbPath || 'pca');
-        fbSet(fbPath + '/driveConfig', {
-          email: userEmail,
-          boundAt: new Date().toISOString(),
-          tenantId,
+        // บันทึกลง Firebase — user อื่นในบริษัทเดียวกันจะได้ใช้ token นี้ด้วย
+        const fbPath2 = (_currentTenant?.fbPath || 'pca');
+        fbSet(fbPath2 + '/driveConfig', {
+          token:   _driveToken,
+          exp:     _driveTokenExp,
+          email:   userEmail,
+          savedAt: new Date().toISOString(),
+          savedBy: S.user?.displayName || S.user?.username || '',
         }).catch(()=>{});
         updateDriveBadge(true, userEmail);
         resolve(_driveToken);
@@ -1687,10 +1703,17 @@ async function getOrRequestDriveToken() {
         }
         _driveToken    = resp.access_token;
         _driveTokenExp = Date.now() + (resp.expires_in - 60) * 1000;
-        const tenantId = _currentTenant?.id || 'T-001';
-        localStorage.setItem('pca_drive_token_' + tenantId, _driveToken);
-        localStorage.setItem('pca_drive_exp_'   + tenantId, _driveTokenExp.toString());
-        updateDriveBadge(true, localStorage.getItem('pca_drive_email_' + tenantId)||'');
+        const tenantId2 = _currentTenant?.id || 'T-001';
+        localStorage.setItem('pca_drive_token_' + tenantId2, _driveToken);
+        localStorage.setItem('pca_drive_exp_'   + tenantId2, _driveTokenExp.toString());
+        // อัปเดต Firebase ด้วยเพื่อแชร์ให้ user อื่น
+        const fbPath3 = (_currentTenant?.fbPath || 'pca');
+        const savedEmail3 = localStorage.getItem('pca_drive_email_' + tenantId2) || '';
+        fbSet(fbPath3 + '/driveConfig', {
+          token: _driveToken, exp: _driveTokenExp,
+          email: savedEmail3, savedAt: new Date().toISOString(),
+        }).catch(()=>{});
+        updateDriveBadge(true, localStorage.getItem('pca_drive_email_' + tenantId2)||'');
         startDriveTokenRefresh(); // ตั้ง timer refresh ใหม่
         resolve(_driveToken);
       },
@@ -4446,7 +4469,12 @@ function dlPaymentVoucher(raw) {
     <div>วันที่<span class="underline" style="min-width:200px">&nbsp;${formatThaiDate(t.date)}&nbsp;</span></div>
   </div>
   <div style="margin:5px 0">จ่ายให้<span class="underline" style="min-width:360px">&nbsp;${t.vendor||t.requester||""}&nbsp;</span></div>
-  <div style="margin:5px 0">ที่อยู่<span class="underline" style="min-width:360px">&nbsp;${t.vendorAddress||t.vendor_address||""}&nbsp;</span></div>
+  <div style="margin:5px 0;display:flex;align-items:center;gap:6px">ที่อยู่
+    <input id="pv_addr_input" value="${t.vendorAddress||t.vendor_address||''}" 
+      placeholder="กรอกที่อยู่ผู้จำหน่าย"
+      style="flex:1;border:none;border-bottom:1px solid #000;outline:none;font-size:14pt;font-family:inherit;padding:0 4px"
+      onkeyup="document.getElementById('pv_addr_display').textContent=this.value">
+  </div>
   <div style="margin:5px 0">เลขประจำตัวผู้เสียภาษี<span class="underline" style="min-width:280px">&nbsp;${t.vendorTax||t.vendor_tax||""}&nbsp;</span></div>
   <table>
     <thead><tr><th style="width:10%">ลำดับที่</th><th>รายการ</th><th style="width:20%">จำนวนเงิน (บาท)</th><th style="width:10%">สต.</th></tr></thead>
@@ -4530,7 +4558,7 @@ function dlReceiptVoucher(raw) {
 </div>
 
 <div>ข้าพเจ้า<span class="ul" style="min-width:360px">&nbsp;${t.vendor||t.requester||""}&nbsp;</span>(ผู้ขายสินค้า/ให้บริการ)</div>
-<div>เลขประจำตัวผู้เสียภาษี<span class="ul" style="min-width:180px">&nbsp;${t.vendorTax||t.vendor_tax||""}&nbsp;</span>ที่อยู่<span class="ul" style="min-width:200px">&nbsp;${t.vendorAddress||t.vendor_address||""}&nbsp;</span></div>
+<div>เลขประจำตัวผู้เสียภาษี<span class="ul" style="min-width:180px">&nbsp;${t.vendorTax||t.vendor_tax||""}&nbsp;</span>ที่อยู่<input id="rv_addr_input" value="${t.vendorAddress||t.vendor_address||''}" placeholder="กรอกที่อยู่" style="border:none;border-bottom:1px solid #000;outline:none;font-size:14pt;font-family:inherit;min-width:180px;padding:0 4px"></div>
 <div>ได้รับเงินจาก <span style="text-decoration:underline">&nbsp;${s.companyName||""}&nbsp;</span> (ผู้ซื้อ/ผู้รับบริการ) ดังรายการต่อไปนี้</div>
 
 <table>
