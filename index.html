@@ -2133,12 +2133,14 @@ function updateFirebaseBadge(ok) {
 
 // อ่านข้อมูลจาก Firebase
 async function fbGet(path) {
-  if (!_db) return null;
-  const { ref, get } = window._fbModules;
+  const fbBase   = 'https://petty-cash-ad50c-default-rtdb.asia-southeast1.firebasedatabase.app';
+  const secret   = 'ywzydr8HCiZalfbUKJnx0ovbkFcCD7SXMPdyFKGA';
   try {
-    const snap = await get(ref(_db, path));
-    return snap.exists() ? snap.val() : null;
-  } catch(e) { console.warn('fbGet:', e.message); return null; }
+    const resp = await fetch(`${fbBase}/${path}.json?auth=${secret}`);
+    const data = await resp.json();
+    if (data && data.error) return null;
+    return data;
+  } catch(e) { console.warn('fbGet REST:', e.message); return null; }
 }
 
 // เขียนข้อมูลไป Firebase
