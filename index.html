@@ -1397,10 +1397,25 @@ async function submitRegisterCompany() {
     id: 'U-'+uid(), username, displayName: name,
     role: 'แอดมิน', password: pass, isActive: true, signature: '',
   };
-  await fbSet(`${fbPath}/users`, [adminUser]);
 
-  // บันทึก settings เริ่มต้นพร้อมชื่อบริษัท
-  await fbSet(`${fbPath}/settings`, {
+  // ใช้ REST API โดยตรง (ไม่ผ่าน _currentTenant เพราะยังไม่ได้ login)
+  const fbBase = `https://petty-cash-ad50c-default-rtdb.asia-southeast1.firebasedatabase.app`;
+  const secret = 'ywzydr8HCiZalfbUKJnx0ovbkFcCD7SXMPdyFKGA';
+
+  const fbPut = async (subPath, data) => {
+    const url = `${fbBase}/${fbPath}/${subPath}.json?auth=${secret}`;
+    const r = await fetch(url, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    });
+    const json = await r.json();
+    if (json.error) throw new Error(json.error);
+    return json;
+  };
+
+  await fbPut('users', [adminUser]);
+  await fbPut('settings', {
     companyName: companyName,
     custodian:   'แผนกบัญชี',
     approver:    'ผู้จัดการฝ่ายการเงิน',
