@@ -1349,16 +1349,24 @@ async function submitRegisterCompany() {
   const pass        = document.getElementById('rc_pass')?.value.trim();
   const resultEl    = document.getElementById('rc_result');
 
-  if (!companyName) return showToast('กรุณากรอกชื่อบริษัท','error');
-  if (!driveLink)   return showToast('กรุณากรอกลิ้งค์ Google Drive','error');
-  if (!name || !username || !pass) return showToast('กรอกข้อมูล Admin ให้ครบ','error');
-  if (pass.length < 4) return showToast('รหัสผ่านต้องมีอย่างน้อย 4 ตัว','error');
+  const showErr = (msg) => {
+    resultEl.innerHTML = `<div style="color:var(--danger);font-size:13px;padding:8px 12px;background:var(--danger-bg);border-radius:8px">❌ ${msg}</div>`;
+  };
+
+  const nameLabel = _regType === 'individual' ? 'ชื่อ-นามสกุล' : 'ชื่อบริษัท';
+  if (!companyName) return showErr(`กรุณากรอก${nameLabel}`);
+  if (!driveLink)   return showErr('กรุณากรอกลิ้งค์ Google Drive');
+  if (!name)        return showErr('กรุณากรอกชื่อ-นามสกุล');
+  if (!username)    return showErr('กรุณากรอก Username');
+  if (!pass)        return showErr('กรุณากรอกรหัสผ่าน');
+  if (pass.length < 4) return showErr('รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร');
 
   const folderId = extractDriveFolderId(driveLink);
-  if (!folderId) return showToast('ลิ้งค์ Google Drive ไม่ถูกต้อง','error');
+  if (!folderId) return showErr('ลิ้งค์ Google Drive ไม่ถูกต้อง — กรุณาตรวจสอบอีกครั้ง');
 
-  resultEl.innerHTML = '<div style="color:var(--info);font-size:13px">⏳ กำลังสร้างบริษัท...</div>';
+  resultEl.innerHTML = '<div style="color:var(--info);font-size:13px">⏳ กำลังสร้างบัญชี...</div>';
 
+  try {
   // Generate tenant ID อัตโนมัติ
   const tenants  = await fetchAllTenants();
   let max = 1;
@@ -1435,6 +1443,9 @@ async function submitRegisterCompany() {
   document.getElementById('loginUser').value   = username;
   document.getElementById('loginPass').value   = pass;
   await login();
+  } catch(e) {
+    resultEl.innerHTML = `<div style="color:var(--danger);font-size:13px;padding:8px 12px;background:var(--danger-bg);border-radius:8px">❌ เกิดข้อผิดพลาด: ${e.message}</div>`;
+  }
 }
 
 function showRegisterModal() {
