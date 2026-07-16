@@ -1739,6 +1739,7 @@ async function _setupDriveAuth() {
   // 2) ดึงจาก Firebase (แชร์ระหว่าง user ในบริษัทเดียวกัน)
   try {
     const driveConfig = await fbGet(fbPath + '/driveConfig');
+    if (driveConfig?.refreshToken) localStorage.setItem('pca_drive_rt_' + tenantId, driveConfig.refreshToken);
     if (driveConfig?.token && driveConfig?.exp && Date.now() < driveConfig.exp) {
       _driveToken    = driveConfig.token;
       _driveTokenExp = driveConfig.exp;
@@ -1750,114 +1751,130 @@ async function _setupDriveAuth() {
       startDriveTokenRefresh();
       return;
     }
-    // token หมดแต่มี email — แสดงให้รู้ว่าต้อง login account ใด
-    if (driveConfig?.email) {
-      localStorage.setItem('pca_drive_email_' + tenantId, driveConfig.email);
-      updateDriveBadge(false, driveConfig.email);
+    // token หมด แต่มี refresh_token — ต่ออายุแบบเงียบๆ ผ่าน Apps Script (ไม่พึ่ง cookie/session ของ Google เลย)
+    if (driveConfig?.refreshToken || driveConfig?.email) {
+      if (driveConfig.email) localStorage.setItem('pca_drive_email_' + tenantId, driveConfig.email);
+      try {
+        await getOrRequestDriveToken();
+        return; // สำเร็จ — updateDriveBadge(true,...) ถูกเรียกใน getOrRequestDriveToken แล้ว
+      } catch(e2) {
+        updateDriveBadge(false, driveConfig.email || '');
+      }
       return;
     }
   } catch(e) {}
   updateDriveBadge(false);
 }
 
+// เรียก Apps Script proxy เพื่อแลก/ต่ออายุ token (Client Secret เก็บฝั่ง Apps Script เท่านั้น ไม่ฝังใน client)
+async function _driveTokenExchange(action, payload) {
+  const scriptUrl = window._tenantAppsScriptUrl || APPS_SCRIPT_URL;
+  const resp = await fetch(scriptUrl, {
+    method: 'POST',
+    body: JSON.stringify({ action, ...payload })
+  });
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error);
+  return data; // { access_token, expires_in, refresh_token? }
+}
+
+// ขอเชื่อมต่อ Drive ครั้งแรก (ต้อง popup ยินยอม 1 ครั้ง — หลังจากนี้ใช้ refresh_token ต่ออายุเองตลอด ไม่มีวันหลุด)
 function requestDriveToken() {
   return new Promise((resolve, reject) => {
     if (!window.google?.accounts?.oauth2) {
       reject(new Error('Google Identity Services ยังไม่โหลด'));
       return;
     }
-    const client = google.accounts.oauth2.initTokenClient({
+    const client = google.accounts.oauth2.initCodeClient({
       client_id: DRIVE_CLIENT_ID,
       scope:     DRIVE_SCOPE,
+      ux_mode:   'popup',
       callback:  async (resp) => {
         if (resp.error) { reject(new Error(resp.error)); return; }
-        _driveToken    = resp.access_token;
-        _driveTokenExp = Date.now() + (resp.expires_in - 60) * 1000;
         const tenantId = _currentTenant?.id || 'T-001';
-
-        // ตรวจสอบว่าเคยผูก Google Account อื่นกับบริษัทนี้ไว้ไหม
-        const boundEmail = localStorage.getItem('pca_drive_email_' + tenantId);
-
-        // ดึง email จาก Google
-        let userEmail = '';
         try {
-          const uResp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: 'Bearer ' + _driveToken }
-          });
-          const uData = await uResp.json();
-          userEmail = uData.email || '';
-        } catch(e) {}
+          // แลก authorization code → access_token + refresh_token ผ่าน Apps Script
+          const tok = await _driveTokenExchange('exchangeCode', { code: resp.code });
+          _driveToken    = tok.access_token;
+          _driveTokenExp = Date.now() + (tok.expires_in - 60) * 1000;
 
-        // ถ้าผูก account อื่นไว้แล้ว — ป้องกัน
-        if (boundEmail && userEmail && boundEmail !== userEmail) {
-          _driveToken = null;
-          reject(new Error(`บริษัทนี้ผูกกับ ${boundEmail} แล้ว ไม่สามารถใช้ ${userEmail} ได้`));
-          return;
-        }
+          // ตรวจสอบว่าเคยผูก Google Account อื่นกับบริษัทนี้ไว้ไหม
+          const boundEmail = localStorage.getItem('pca_drive_email_' + tenantId);
 
-        // บันทึกลง localStorage + Firebase (แชร์ให้ทุก user ในบริษัท)
-        localStorage.setItem('pca_drive_token_' + tenantId, _driveToken);
-        localStorage.setItem('pca_drive_exp_'   + tenantId, _driveTokenExp.toString());
-        localStorage.setItem('pca_drive_email_' + tenantId, userEmail);
-        // บันทึกลง Firebase — user อื่นในบริษัทเดียวกันจะได้ใช้ token นี้ด้วย
-        const fbPath2 = (_currentTenant?.fbPath || 'pca');
-        fbSet(fbPath2 + '/driveConfig', {
-          token:   _driveToken,
-          exp:     _driveTokenExp,
-          email:   userEmail,
-          savedAt: new Date().toISOString(),
-          savedBy: S.user?.displayName || S.user?.username || '',
-        }).catch(()=>{});
-        updateDriveBadge(true, userEmail);
-        resolve(_driveToken);
+          // ดึง email จาก Google
+          let userEmail = '';
+          try {
+            const uResp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+              headers: { Authorization: 'Bearer ' + _driveToken }
+            });
+            const uData = await uResp.json();
+            userEmail = uData.email || '';
+          } catch(e) {}
+
+          // ถ้าผูก account อื่นไว้แล้ว — ป้องกัน
+          if (boundEmail && userEmail && boundEmail !== userEmail) {
+            _driveToken = null;
+            reject(new Error(`บริษัทนี้ผูกกับ ${boundEmail} แล้ว ไม่สามารถใช้ ${userEmail} ได้`));
+            return;
+          }
+
+          // บันทึกลง localStorage + Firebase (แชร์ให้ทุก user ในบริษัท)
+          localStorage.setItem('pca_drive_token_' + tenantId, _driveToken);
+          localStorage.setItem('pca_drive_exp_'   + tenantId, _driveTokenExp.toString());
+          localStorage.setItem('pca_drive_email_' + tenantId, userEmail);
+          if (tok.refresh_token) localStorage.setItem('pca_drive_rt_' + tenantId, tok.refresh_token);
+
+          // บันทึกลง Firebase — user อื่นในบริษัทเดียวกันจะได้ใช้ token/refresh_token นี้ด้วย
+          const fbPath2 = (_currentTenant?.fbPath || 'pca');
+          fbSet(fbPath2 + '/driveConfig', {
+            token:        _driveToken,
+            exp:          _driveTokenExp,
+            refreshToken: tok.refresh_token || localStorage.getItem('pca_drive_rt_' + tenantId) || '',
+            email:        userEmail,
+            savedAt:      new Date().toISOString(),
+            savedBy:      S.user?.displayName || S.user?.username || '',
+          }).catch(()=>{});
+          updateDriveBadge(true, userEmail);
+          startDriveTokenRefresh();
+          resolve(_driveToken);
+        } catch(e) { reject(e); }
       },
     });
-    client.requestAccessToken();
+    client.requestCode();
   });
 }
 
 async function getOrRequestDriveToken() {
   // ถ้า token ยังใช้ได้ return เลย
   if (_driveToken && Date.now() < _driveTokenExp) return _driveToken;
-  // token หมด — auto re-login แบบ silent (prompt: 'none' ก่อน)
-  return new Promise((resolve, reject) => {
-    if (!window.google?.accounts?.oauth2) {
-      reject(new Error('Google Identity Services ยังไม่โหลด'));
-      return;
+
+  const tenantId     = _currentTenant?.id || 'T-001';
+  const refreshToken = localStorage.getItem('pca_drive_rt_' + tenantId) || '';
+
+  // มี refresh_token — ต่ออายุผ่าน Apps Script แบบเงียบๆ (ไม่ต้อง popup ไม่พึ่ง cookie ของ Google เลย)
+  if (refreshToken) {
+    try {
+      const tok = await _driveTokenExchange('refreshToken', { refreshToken });
+      _driveToken    = tok.access_token;
+      _driveTokenExp = Date.now() + (tok.expires_in - 60) * 1000;
+      localStorage.setItem('pca_drive_token_' + tenantId, _driveToken);
+      localStorage.setItem('pca_drive_exp_'   + tenantId, _driveTokenExp.toString());
+      const fbPath3     = (_currentTenant?.fbPath || 'pca');
+      const savedEmail3 = localStorage.getItem('pca_drive_email_' + tenantId) || '';
+      fbSet(fbPath3 + '/driveConfig', {
+        token: _driveToken, exp: _driveTokenExp,
+        refreshToken, email: savedEmail3, savedAt: new Date().toISOString(),
+      }).catch(()=>{});
+      updateDriveBadge(true, savedEmail3);
+      startDriveTokenRefresh(); // ตั้ง timer refresh ใหม่
+      return _driveToken;
+    } catch(e) {
+      // refresh_token ใช้ไม่ได้แล้ว (เช่น ถูกถอน consent) — ต้องขอ popup ใหม่
+      return requestDriveToken();
     }
-    // ลอง silent login ก่อน (ไม่มี popup ถ้า session ยังอยู่)
-    const silentClient = google.accounts.oauth2.initTokenClient({
-      client_id: DRIVE_CLIENT_ID,
-      scope: DRIVE_SCOPE,
-      prompt: '',  // ไม่ขอ consent ซ้ำถ้า session ยังอยู่
-      callback: async (resp) => {
-        if (resp.error) {
-          // silent ไม่ได้ → ขอ popup ปกติ
-          try {
-            const token = await requestDriveToken();
-            resolve(token);
-          } catch(e) { reject(e); }
-          return;
-        }
-        _driveToken    = resp.access_token;
-        _driveTokenExp = Date.now() + (resp.expires_in - 60) * 1000;
-        const tenantId2 = _currentTenant?.id || 'T-001';
-        localStorage.setItem('pca_drive_token_' + tenantId2, _driveToken);
-        localStorage.setItem('pca_drive_exp_'   + tenantId2, _driveTokenExp.toString());
-        // อัปเดต Firebase ด้วยเพื่อแชร์ให้ user อื่น
-        const fbPath3 = (_currentTenant?.fbPath || 'pca');
-        const savedEmail3 = localStorage.getItem('pca_drive_email_' + tenantId2) || '';
-        fbSet(fbPath3 + '/driveConfig', {
-          token: _driveToken, exp: _driveTokenExp,
-          email: savedEmail3, savedAt: new Date().toISOString(),
-        }).catch(()=>{});
-        updateDriveBadge(true, localStorage.getItem('pca_drive_email_' + tenantId2)||'');
-        startDriveTokenRefresh(); // ตั้ง timer refresh ใหม่
-        resolve(_driveToken);
-      },
-    });
-    silentClient.requestAccessToken({ prompt: '' });
-  });
+  }
+  // ไม่มี refresh_token เลย (ยังไม่เคยเชื่อมต่อ หรือเชื่อมต่อแบบเก่าก่อนอัปเดต) — ต้องขอ popup
+  return requestDriveToken();
 }
 
 // refresh token อัตโนมัติก่อนหมด 5 นาที
