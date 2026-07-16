@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Petty Cash — Drive Edition</title>
+<title>Xpense — ระบบบันทึกค่าใช้จ่าย</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -331,8 +331,8 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
 <div id="loginScreen" class="full-screen hidden">
   <div class="center-box">
     <div class="logo">💰</div>
-    <div class="screen-title">Petty Cash</div>
-    <div class="screen-sub">ระบบเงินสดย่อย<br>กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ</div>
+    <div class="screen-title" id="loginAppName">Xpense</div>
+    <div class="screen-sub" id="loginAppSub">ระบบบันทึกค่าใช้จ่าย<br>กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ</div>
     <label>รหัสบริษัท (Company Code)</label>
     <input id="loginTenant" placeholder="เช่น T-001" autocomplete="organization" onkeydown="if(event.key==='Enter')login()" style="letter-spacing:.1em;text-transform:uppercase">
     <label>ชื่อผู้ใช้ (Username)</label>
@@ -360,22 +360,35 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
 <!-- Modal ลงทะเบียนบริษัทใหม่ -->
 <div id="registerCompanyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;align-items:center;justify-content:center">
   <div style="background:var(--surface);border-radius:20px;padding:28px;width:100%;max-width:500px;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:90vh;overflow-y:auto">
-    <div style="font-size:18px;font-weight:700;margin-bottom:4px">🏢 ลงทะเบียนบริษัทใหม่</div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:18px">สร้างบัญชีบริษัทและ Admin คนแรก</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:4px" id="rc_modal_title">📋 ลงทะเบียนใช้งาน</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px">สร้างบัญชีและเริ่มใช้งานได้ทันที</div>
 
-    <div style="background:var(--info-bg);border:1px solid rgba(29,78,216,.2);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--info);margin-bottom:16px;line-height:1.8">
-      📌 สร้างโฟลเดอร์ใน <strong>Google Drive</strong> ของบริษัท แล้ว copy ลิ้งค์มาวางด้านล่าง<br>
-      ระบบจะขอสิทธิ์ Login Google ครั้งเดียวตอนเริ่มใช้งาน — ไฟล์จะอยู่ใน Drive ของบริษัทเอง
+    <!-- ประเภทผู้ใช้ -->
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button onclick="setRegType('company')" id="rc_btn_company"
+        style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--primary);background:var(--primary);color:#fff;cursor:pointer;font-family:inherit;font-weight:700;font-size:13px">
+        🏢 บริษัท / นิติบุคคล
+      </button>
+      <button onclick="setRegType('individual')" id="rc_btn_individual"
+        style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-family:inherit;font-weight:700;font-size:13px">
+        👤 บุคคลธรรมดา
+      </button>
     </div>
 
-    <label style="font-size:13px;font-weight:600">ชื่อบริษัท *</label>
+    <div style="background:var(--info-bg);border:1px solid rgba(29,78,216,.2);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--info);margin-bottom:16px;line-height:1.8">
+      📌 สร้างโฟลเดอร์ใน <strong>Google Drive</strong> ของคุณ แล้ว copy ลิ้งค์มาวางด้านล่าง<br>
+      ระบบจะขอสิทธิ์ Login Google ครั้งเดียวตอนเริ่มใช้งาน — ไฟล์จะอยู่ใน Drive ของคุณเอง
+    </div>
+
+    <!-- ชื่อบริษัท / ชื่อ-นามสกุล -->
+    <label style="font-size:13px;font-weight:600" id="rc_name_label">ชื่อบริษัท *</label>
     <input id="rc_companyName" placeholder="บริษัท ABC จำกัด" style="width:100%;margin:4px 0 12px">
 
     <label style="font-size:13px;font-weight:600">ลิ้งค์โฟลเดอร์ Google Drive *</label>
     <input id="rc_driveLink" placeholder="https://drive.google.com/drive/folders/1ABC..." style="width:100%;margin:4px 0 12px">
 
     <div style="border-top:1px solid var(--border);margin:14px 0 10px"></div>
-    <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px">👤 ข้อมูล Admin คนแรก</div>
+    <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:10px">🔑 ข้อมูลเข้าสู่ระบบ</div>
 
     <label style="font-size:13px;font-weight:600">ชื่อ-นามสกุล *</label>
     <input id="rc_name" placeholder="ชื่อ-นามสกุล" style="width:100%;margin:4px 0 12px">
@@ -388,7 +401,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
 
     <div id="rc_result" style="margin:8px 0"></div>
     <div style="display:flex;gap:8px;margin-top:6px">
-      <button onclick="submitRegisterCompany()" style="flex:1;padding:11px;background:var(--success);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700;font-family:inherit">✅ สร้างบริษัท</button>
+      <button onclick="submitRegisterCompany()" id="rc_submit_btn" style="flex:1;padding:11px;background:var(--success);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700;font-family:inherit">✅ สร้างบัญชี</button>
       <button onclick="document.getElementById('registerCompanyModal').style.display='none'" style="padding:11px 16px;background:var(--surface2);color:var(--text2);border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:14px;font-family:inherit">ยกเลิก</button>
     </div>
   </div>
@@ -455,7 +468,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
         <div class="brand">
           <div class="brand-mark">💰</div>
           <div>
-            <div class="company-name" id="companyTitle">Petty Cash</div>
+            <div class="company-name" id="companyTitle">Xpense</div>
             <div class="muted" id="userMeta">-</div>
           </div>
         </div>
@@ -1147,6 +1160,44 @@ const DEFAULT_TENANT_T001 = {
 };
 let _currentTenant = null;
 
+// ── BRANDING ──
+function applyBranding(tenant) {
+  // ดึง branding จาก tenant config (Super Admin กำหนด)
+  // brand: 'xpense' (default) หรือ 'pettycash'
+  const brand = tenant?.brand || 'xpense';
+  const isPettyCash = brand === 'pettycash';
+
+  const appName = isPettyCash ? 'Petty Cash' : 'Xpense';
+  const appSub  = isPettyCash ? 'ระบบเงินสดย่อย' : 'ระบบบันทึกค่าใช้จ่าย';
+
+  // หน้า login
+  const loginName = document.getElementById('loginAppName');
+  const loginSub  = document.getElementById('loginAppSub');
+  if (loginName) loginName.textContent = appName;
+  if (loginSub)  loginSub.textContent  = appSub + '\nกรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ';
+
+  // title tag
+  document.title = appName + ' — ' + appSub;
+
+  // header (หลัง login)
+  const ct = document.getElementById('companyTitle');
+  if (ct && ct.textContent === 'Xpense' || ct?.textContent === 'Petty Cash') {
+    // จะถูก override โดย companyName ของบริษัทอยู่แล้ว ไม่ต้องเปลี่ยน
+  }
+}
+
+// ── ดึง branding หน้า login ก่อน login ──
+async function initBranding() {
+  // ถ้ากรอก tenant code แล้ว — ดึง branding ของ tenant นั้น
+  const tenantCode = document.getElementById('loginTenant')?.value.trim().toUpperCase();
+  if (tenantCode) {
+    const tenant = await fetchTenantConfig(tenantCode).catch(()=>null);
+    if (tenant) { applyBranding(tenant); return; }
+  }
+  // default = Xpense
+  applyBranding({ brand: 'xpense' });
+}
+
 async function fetchTenantConfig(tenantId) {
   const id = tenantId.trim().toUpperCase();
   if (id === 'T-001') return DEFAULT_TENANT_T001;
@@ -1250,8 +1301,44 @@ window.addEventListener('load', () => {
 // ══ ลงทะเบียนผู้ขอเบิกครั้งแรก ══
 let _regSigCtx = null, _regSigCanvas = null, _regSigDrawing = false, _regSigData = '';
 
+let _regType = 'company'; // 'company' | 'individual'
+
+function setRegType(type) {
+  _regType = type;
+  const btnCo  = document.getElementById('rc_btn_company');
+  const btnInd = document.getElementById('rc_btn_individual');
+  const label  = document.getElementById('rc_name_label');
+  const input  = document.getElementById('rc_companyName');
+  const title  = document.getElementById('rc_modal_title');
+
+  if (type === 'company') {
+    btnCo.style.background  = 'var(--primary)';
+    btnCo.style.color       = '#fff';
+    btnCo.style.borderColor = 'var(--primary)';
+    btnInd.style.background = 'var(--surface)';
+    btnInd.style.color      = 'var(--text2)';
+    btnInd.style.borderColor= 'var(--border)';
+    if (label) label.textContent = 'ชื่อบริษัท / ห้างร้าน *';
+    if (input) input.placeholder = 'บริษัท ABC จำกัด';
+    if (title) title.textContent = '🏢 ลงทะเบียนบริษัท / นิติบุคคล';
+  } else {
+    btnInd.style.background = 'var(--primary)';
+    btnInd.style.color      = '#fff';
+    btnInd.style.borderColor= 'var(--primary)';
+    btnCo.style.background  = 'var(--surface)';
+    btnCo.style.color       = 'var(--text2)';
+    btnCo.style.borderColor = 'var(--border)';
+    if (label) label.textContent = 'ชื่อ-นามสกุล (ใช้เป็นชื่อบัญชี) *';
+    if (input) input.placeholder = 'นาย ก ข ค';
+    if (title) title.textContent = '👤 ลงทะเบียนบุคคลธรรมดา';
+  }
+}
+
 function showRegisterCompanyModal() {
+  _regType = 'company';
   document.getElementById('registerCompanyModal').style.display = 'flex';
+  // reset to company tab
+  setTimeout(() => setRegType('company'), 50);
 }
 
 async function submitRegisterCompany() {
@@ -1283,6 +1370,7 @@ async function submitRegisterCompany() {
   const cfg = {
     id: tenantId, companyName, driveFolderId: folderId,
     fbPath, appsScriptUrl: APPS_SCRIPT_URL, createdAt: new Date().toISOString(),
+    accountType: _regType || 'company',
   };
   await saveTenantConfig(cfg);
 
@@ -1321,12 +1409,25 @@ async function submitRegisterCompany() {
      <br><p>จัดการได้ที่ <a href="https://petty-cash-alpha.vercel.app/admin.html">admin.html</a></p>`
   ).catch(()=>{});
 
-  resultEl.innerHTML = `<div style="background:var(--success-bg);color:var(--success);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600">
-    🎉 สร้างบริษัทสำเร็จ! รหัสบริษัท: <strong>${tenantId}</strong><br>
-    กำลังเข้าสู่ระบบ...
-  </div>`;
+  const typeLabel = (_regType === 'individual') ? 'บุคคลธรรมดา' : 'บริษัท / นิติบุคคล';
+  resultEl.innerHTML = `
+    <div style="background:var(--success-bg);border:1.5px solid rgba(5,150,105,.3);border-radius:12px;padding:16px;text-align:center">
+      <div style="font-size:22px;margin-bottom:6px">🎉</div>
+      <div style="font-weight:700;font-size:15px;color:var(--success);margin-bottom:12px">สร้างบัญชีสำเร็จ!</div>
+      <div style="background:#fff;border-radius:10px;padding:12px 16px;margin-bottom:10px;border:1px solid rgba(5,150,105,.2)">
+        <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">รหัสบัญชี (Company Code)</div>
+        <div style="font-size:28px;font-weight:700;color:var(--primary);letter-spacing:.15em">${tenantId}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">ประเภท: ${typeLabel}</div>
+      </div>
+      <div style="font-size:12px;color:var(--warn);font-weight:600;margin-bottom:8px">⚠️ กรุณาจดรหัสนี้ไว้ — ต้องใช้ทุกครั้งที่ Login</div>
+      <button onclick="navigator.clipboard.writeText('${tenantId}').then(()=>showToast('Copy รหัสแล้ว ✓','success'))"
+        style="padding:6px 16px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;font-weight:600">
+        📋 Copy รหัส
+      </button>
+      <div style="font-size:12px;color:var(--muted);margin-top:10px">กำลังเข้าสู่ระบบอัตโนมัติ...</div>
+    </div>`;
 
-  await new Promise(r=>setTimeout(r,1200));
+  await new Promise(r=>setTimeout(r,3000));
   document.getElementById('registerCompanyModal').style.display = 'none';
 
   // auto login
@@ -1473,6 +1574,7 @@ async function login() {
     return showToast('ไม่พบรหัสบริษัท: ' + tenantCode,'error');
   }
   _currentTenant = tenant;
+  applyBranding(tenant);
 
   // 2) Init Firebase เดิม (ทุก tenant ใช้ร่วมกัน)
   if (btn) btn.innerHTML='⏳ เชื่อมต่อระบบ...';
