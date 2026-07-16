@@ -238,7 +238,23 @@ button{border:none;padding:9px 16px;border-radius:9px;font-weight:700;cursor:poi
     <div class="modal-title" id="detailTitle">📋 รายละเอียดบริษัท</div>
     <div id="detailContent"></div>
     <div style="border-top:1px solid var(--border);margin:16px 0"></div>
-    <div class="modal-title" style="font-size:14px">🔧 กำหนดสิทธิ์การใช้งาน</div>
+    <div class="modal-title" style="font-size:14px">🎨 Branding / ชื่อแอป</div>
+    <div style="display:flex;gap:12px;margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:2px solid var(--border);border-radius:10px;flex:1">
+        <input type="radio" name="brand" id="brand_xpense" value="xpense">
+        <div>
+          <div style="font-weight:700;font-size:15px">Xpense</div>
+          <div style="font-size:12px;color:var(--muted)">ระบบบันทึกค่าใช้จ่าย (ค่าเริ่มต้น)</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:2px solid var(--border);border-radius:10px;flex:1">
+        <input type="radio" name="brand" id="brand_pettycash" value="pettycash">
+        <div>
+          <div style="font-weight:700;font-size:15px">Petty Cash</div>
+          <div style="font-size:12px;color:var(--muted)">ระบบเงินสดย่อย (แบบเดิม)</div>
+        </div>
+      </label>
+    </div>
     <div id="featuresPanel" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"></div>
     <button onclick="saveFeatures()" class="btn-primary btn-sm">💾 บันทึกสิทธิ์</button>
     <div style="border-top:1px solid var(--border);margin:16px 0"></div>
@@ -275,7 +291,7 @@ button{border:none;padding:9px 16px;border-radius:9px;font-weight:700;cursor:poi
 const REGISTRY_FB_URL    = 'https://petty-cash-ad50c-default-rtdb.asia-southeast1.firebasedatabase.app';
 const REGISTRY_FB_SECRET = 'ywzydr8HCiZalfbUKJnx0ovbkFcCD7SXMPdyFKGA';
 const REGISTRY_PATH      = 'registry/tenants';
-const SUPER_ADMIN_PASS   = 'admin3909*'; // เปลี่ยนได้
+const SUPER_ADMIN_PASS   = 'petty@super2024'; // เปลี่ยนได้
 const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8o3DtWCHSqU1h2ZaIpthKCcbJlN_p_LBBDWr_i63zVqRF4fqVjUn_pRf1_trsRILwvw/exec';
 const DEFAULT_TENANT_T001 = {
   id: 'T-001', companyName: 'บริษัทตัวอย่าง จำกัด',
@@ -508,12 +524,20 @@ async function showDetail(id) {
 
   document.getElementById('detailTitle').textContent = `📋 ${t.companyName || t.id}`;
   document.getElementById('detailContent').innerHTML = `
+    <div class="detail-row"><div class="detail-label">ประเภทบัญชี</div><div class="detail-val">${t.accountType === 'individual' ? '👤 บุคคลธรรมดา' : '🏢 บริษัท / นิติบุคคล'}</div></div>
     <div class="detail-row"><div class="detail-label">รหัสบริษัท</div><div class="detail-val"><strong style="color:var(--primary)">${t.id}</strong></div></div>
     <div class="detail-row"><div class="detail-label">ชื่อบริษัท</div><div class="detail-val">${t.companyName||'—'}</div></div>
     <div class="detail-row"><div class="detail-label">วันที่สมัคร</div><div class="detail-val">${date}</div></div>
     <div class="detail-row"><div class="detail-label">Firebase Path</div><div class="detail-val mono">${t.fbPath||'pca'}</div></div>
     <div class="detail-row"><div class="detail-label">Drive Folder</div><div class="detail-val">${driveLink}</div></div>
     <div class="detail-row"><div class="detail-label">จำนวน Users</div><div class="detail-val"><span class="badge badge-blue">${t._userCount} คน</span></div></div>`;
+
+  // Branding
+  const curBrand = t.brand || 'xpense';
+  const bx = document.getElementById('brand_xpense');
+  const bp = document.getElementById('brand_pettycash');
+  if (bx) bx.checked = curBrand === 'xpense';
+  if (bp) bp.checked = curBrand === 'pettycash';
 
   // Features checkboxes
   const features = t.features || {};
@@ -546,12 +570,13 @@ async function showDetail(id) {
 async function saveFeatures() {
   const t = _selectedTenant;
   if (!t) return;
+  const brand    = document.querySelector('input[name="brand"]:checked')?.value || 'xpense';
   const features = {};
   FEATURE_LIST.forEach(f => {
     features[f.key] = document.getElementById('feat_' + f.key)?.checked !== false;
   });
   // บันทึกลง registry
-  const cfg = { ...t, features };
+  const cfg = { ...t, features, brand };
   await fbSet(`${REGISTRY_PATH}/${t.id}`, cfg);
   showToast(`บันทึกสิทธิ์บริษัท ${t.id} สำเร็จ ✓`, 'success');
   await loadAll();
