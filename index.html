@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Xpense — ระบบบันทึกค่าใช้จ่าย</title>
+<title>Prompt Xpense — ระบบบันทึกค่าใช้จ่าย</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -331,7 +331,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
 <div id="loginScreen" class="full-screen hidden">
   <div class="center-box">
     <div class="logo">💰</div>
-    <div class="screen-title" id="loginAppName">Xpense</div>
+    <div class="screen-title" id="loginAppName">Prompt Xpense</div>
     <div class="screen-sub" id="loginAppSub">ระบบบันทึกค่าใช้จ่าย<br>กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ</div>
     <label>รหัสบริษัท (Company Code)</label>
     <input id="loginTenant" placeholder="เช่น T-001" autocomplete="organization" onkeydown="if(event.key==='Enter')login()" style="letter-spacing:.1em;text-transform:uppercase">
@@ -468,7 +468,7 @@ code{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padd
         <div class="brand">
           <div class="brand-mark">💰</div>
           <div>
-            <div class="company-name" id="companyTitle">Xpense</div>
+            <div class="company-name" id="companyTitle">Prompt Xpense</div>
             <div class="muted" id="userMeta">-</div>
           </div>
         </div>
@@ -1167,7 +1167,7 @@ function applyBranding(tenant) {
   const brand = tenant?.brand || 'xpense';
   const isPettyCash = brand === 'pettycash';
 
-  const appName = isPettyCash ? 'Petty Cash' : 'Xpense';
+  const appName = isPettyCash ? 'Petty Cash' : 'Prompt Xpense';
   const appSub  = isPettyCash ? 'ระบบเงินสดย่อย' : 'ระบบบันทึกค่าใช้จ่าย';
 
   // หน้า login
@@ -1181,7 +1181,7 @@ function applyBranding(tenant) {
 
   // header (หลัง login)
   const ct = document.getElementById('companyTitle');
-  if (ct && ct.textContent === 'Xpense' || ct?.textContent === 'Petty Cash') {
+  if (ct && ct.textContent === 'Prompt Xpense' || ct?.textContent === 'Petty Cash') {
     // จะถูก override โดย companyName ของบริษัทอยู่แล้ว ไม่ต้องเปลี่ยน
   }
 }
@@ -1194,7 +1194,7 @@ async function initBranding() {
     const tenant = await fetchTenantConfig(tenantCode).catch(()=>null);
     if (tenant) { applyBranding(tenant); return; }
   }
-  // default = Xpense
+  // default = Prompt Xpense
   applyBranding({ brand: 'xpense' });
 }
 
